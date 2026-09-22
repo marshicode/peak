@@ -55,16 +55,50 @@ function num(v) {
  */
 function mapUpstream(raw) {
   const t = raw?.data?.token ?? raw?.token ?? raw?.data ?? raw ?? {};
+  /* Each chain ends with the frame's OWN field names.
+     The frame contract documented in README/INTEGRATION is
+     { marketCapUsd, priceUsd, buys, sells, holders, buySol?, sellSol? }, so an
+     upstream that already speaks it — another instance of this proxy, a
+     self-hosted feed-proxy.mjs, a hand-rolled endpoint — must map cleanly.
+     Without these the proxy answered such an upstream with a frame full of
+     holes, which is indistinguishable from a provider outage. Provider-native
+     names stay first so they still win. */
   return {
-    marketCapUsd: num(t.marketCap?.usd ?? t.market_cap ?? t.mcap ?? t.usdMarketCap),
+    marketCapUsd: num(t.marketCap?.usd ?? t.market_cap ?? t.mcap ?? t.usdMarketCap ?? t.marketCapUsd),
     priceUsd: num(t.price?.usd ?? t.priceUsd ?? t.price),
     buys: num(t.txns?.buys ?? t.buys ?? t.buyCount) ?? 0,
     sells: num(t.txns?.sells ?? t.sells ?? t.sellCount) ?? 0,
     holders: num(t.holders ?? t.holderCount ?? t.holder_count) ?? 0,
-    buySol: num(t.volume?.buySOL ?? t.volumeSol?.buy ?? t.buyVolumeSol ?? t.buy_volume_sol ?? t.buySOL),
-    sellSol: num(t.volume?.sellSOL ?? t.volumeSol?.sell ?? t.sellVolumeSol ?? t.sell_volume_sol ?? t.sellSOL),
+    buySol: num(t.volume?.buySOL ?? t.volumeSol?.buy ?? t.buyVolumeSol ?? t.buy_volume_sol ?? t.buySOL ?? t.buySol),
+    sellSol: num(t.volume?.sellSOL ?? t.volumeSol?.sell ?? t.sellVolumeSol ?? t.sell_volume_sol ?? t.sellSOL ?? t.sellSol),
     ts: Date.now(),
   };
+}
+
+/** Strip an API key out of a URL before it goes into a diagnostic. Keeps the
+ *  `?`/`&` separator, so the redacted URL still parses as a URL. */
+const redact = url => String(url ?? "").replace(/([?&])(api[-_]?key|apikey)=[^&]*/gi, "$1$2=…");
+
+/* The fields the page cannot work without. buys/sells/holders default to 0 and
+   buySol/sellSol are optional, so a missing one of those is a gap rather than a
+   breakage — but a missing market cap means the mountain cannot move at all. */
+const REQUIRED_FIELDS = ["marketCapUsd", "priceUsd"];
+
+/**
+ * What the upstream actually sent, for `?health=1`.
+ *
+ * A provider that names things differently yields a frame with holes in it, and
+ * the page then shows dashes with nothing anywhere to explain why. Handing the
+ * operator the upstream's own top-level keys is the difference between "the feed
+ * is broken" and "mapUpstream needs another path" — which is the question they
+ * will actually be asking, on launch day, with the site already live.
+ */
+function shapeOf(raw, frame) {
+  const t = raw?.data?.token ?? raw?.token ?? raw?.data ?? raw ?? {};
+  const keys = (t && typeof t === "object" && !Array.isArray(t))
+    ? Object.keys(t).slice(0, 40) : [];
+  const missing = REQUIRED_FIELDS.filter(k => frame[k] == null);
+  return { upstreamKeys: keys, missing, mapped: missing.length === 0 };
 }
 
 /* -------------------------------------------------------------------------
@@ -140,13 +174,27 @@ export default async function handler(req, res) {
       marketCapUsd: 0, priceUsd: 0, buys: 0, sells: 0, holders: 0, ts: Date.now(),
       pending: true,
       reason: !mint ? "no CA published yet" : "no feed_url published yet",
+      /* Health mode has to answer here too. "Nothing published yet" is the state
+         an operator is most likely to be staring at, and a health endpoint that
+         only replies once everything already works is not a diagnostic. */
+      ...(wantsHealth ? {
+        mode: "pending",
+        hasMint: !!mint,
+        hasUpstream: !!upstreamTpl,
+        mint: mint || null,
+        upstream: upstreamTpl ? redact(upstreamTpl) : null,
+        settingsRowRead: !!row,
+      } : {}),
     });
     return;
   }
 
   const now = Date.now();
   if (frameCache.frame && now - frameCache.at < FRAME_TTL_MS) {
-    sendJson(res, 200, wantsHealth ? { ...frameCache.frame, cached: true } : frameCache.frame);
+    sendJson(res, 200, wantsHealth
+      ? { ...frameCache.frame, mode: "live", cached: true, mint,
+          upstream: redact(upstreamTpl.replaceAll("{mint}", encodeURIComponent(mint))) }
+      : frameCache.frame);
     return;
   }
 
@@ -159,23 +207,45 @@ export default async function handler(req, res) {
     });
     if (!upstream.ok) throw new Error(`upstream ${upstream.status}`);
 
-    const frame = mapUpstream(await upstream.json());
+    const raw = await upstream.json();
+    const frame = mapUpstream(raw);
     frameCache = { at: now, frame };
 
     sendJson(res, 200, wantsHealth
-      ? { ...frame, mint, upstream: url.replace(/[?&](api[-_]?key|apikey)=[^&]*/gi, "$1=…") }
+      ? { ...frame, mode: "live", mint, upstream: redact(url), ...shapeOf(raw, frame) }
       : frame);
   } catch (err) {
     const message = String(err?.message || err);
     /* Serve the last good frame if there is one. A provider hiccup should freeze
        the mountain, not blank it. */
     if (frameCache.frame) {
-      sendJson(res, 200, { ...frameCache.frame, stale: true, error: message });
+      sendJson(res, 200, {
+        ...frameCache.frame, stale: true, error: message,
+        /* Health mode must answer here too. "The upstream is failing and we are
+           serving the last good frame" is exactly the state an operator needs to
+           be able to see — and from the page it looks identical to a healthy
+           feed, because the page is still showing numbers. */
+        ...(wantsHealth ? {
+          mode: "stale",
+          mint,
+          upstream: redact(upstreamTpl.replaceAll("{mint}", encodeURIComponent(mint))),
+          hasApiKey: !!apiKey,
+        } : {}),
+      });
       return;
     }
     sendJson(res, 502, {
       error: message,
       marketCapUsd: 0, priceUsd: 0, buys: 0, sells: 0, holders: 0, ts: Date.now(),
+      /* The configuration, so a 502 is actionable: "upstream 404" alongside the
+         URL that was actually called is a different problem from "upstream 404"
+         with no context at all. */
+      ...(wantsHealth ? {
+        mode: "error",
+        mint,
+        upstream: redact(upstreamTpl.replaceAll("{mint}", encodeURIComponent(mint))),
+        hasApiKey: !!apiKey,
+      } : {}),
     });
   }
 }

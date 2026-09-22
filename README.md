@@ -189,6 +189,21 @@ shared: one leak would otherwise be two.
    shows and the readouts stay dashed, because there is no upstream to read.
    `probe-live-wiring.mjs` asserts all four of those states.
 
+   **If the feed stays dashed, ask it why.** `GET /api/feed?health=1` answers with
+   the state (`pending` / `live` / `cached` / `stale` / `error`), the mint, the
+   upstream URL it called (API key redacted), and — the useful part — the top-level
+   keys the upstream actually sent plus any required field it could not find. A
+   provider that calls market cap `fdv` answers:
+
+   ```json
+   { "mapped": false, "missing": ["marketCapUsd"],
+     "upstreamKeys": ["fdv", "current_price", "holdersCount"] }
+   ```
+
+   which tells you exactly which path `mapUpstream` needs. Note `stale`: the page
+   serves the last good frame and looks perfectly healthy while the upstream is
+   failing, so a green-looking site is not proof the provider is up.
+
 ### The chain check
 
 Pasting a contract address is the one action here that can cost someone money —
