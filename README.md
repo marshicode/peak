@@ -48,6 +48,30 @@ Everything is editable in `CONFIG` at the top of the script.
 
 ## What's on screen
 
+### Production posture, and `?demo=1`
+
+The page ships in **production posture**. These are hidden:
+
+| Hidden | Why |
+|---|---|
+| Sim / Manual / Live | A visitor could otherwise switch the site to a local random walk and watch a fabricated market cap climb. |
+| Feed setup | Holds the Compliant / Hype banner toggle — see `INTEGRATION.md` §4. |
+| Reset | Clears the counters; not a visitor's action. |
+
+The feed runs in **Live** mode. With nothing connected it says *awaiting launch*
+and the market cap does not move, which is the honest state for a token that has
+not launched. The route button stays available, because the route is public.
+
+Open **`?demo=1`** to get the whole console back — Sim mode, the manual market
+cap slider, the feed endpoint, the speed and cycle controls, and the Hype
+toggle. That is the posture for demos and screenshots; it is the same code path,
+so the two cannot drift apart.
+
+This is a client-side gate. It stops the shipped page from *offering* these,
+which is what matters: anyone in devtools can edit the page's text anyway, and no
+client-side gate changes that. What it does fix is that the site cannot be
+screenshotted shipping Hype copy.
+
 **The massif.** A real Everest skyline: Nuptse's dark block on the left, the
 Western Cwm dip, the main summit pyramid, the South Col saddle, and Lhotse to
 the right at 8,516 m. The Yellow Band and Geneva Spur are drawn as rock bands.

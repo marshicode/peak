@@ -135,8 +135,22 @@ reinterpretation of a market cap.
 ### The "buy more" banner
 
 You asked for a banner that encourages buying to reach the next peak. It's in
-the build — switch **Banner copy mode → Hype** in Feed setup to see it. It ships
-**off** by default, and here's why.
+the build — open the page with **`?demo=1`** and switch **Banner copy mode →
+Hype** in Feed setup to see it. It ships **off** by default, and here's why.
+
+**And it is not reachable without that flag.** The page ships in production
+posture: the Sim / Manual / Live switch, the Feed setup drawer and Reset are all
+hidden, and the feed runs in Live mode with the banner locked to the compliant
+copy. `?demo=1` restores the whole console for a demo.
+
+That distinction turned out to matter more than the default did. "Ships off by
+default" was true of the *setting* and false of the *page*: the toggle was in the
+visitor's hands, so anyone could flip the site into Hype mode and screenshot it,
+with the warning box below sitting inside the drawer the screenshot would crop.
+The site publishing the copy is the exposure; a visitor being able to switch it
+on is the site publishing it. A client-side flag stops the shipped page offering
+it, which is the standard that matters — anyone in devtools can rewrite the
+page's text regardless, and no client-side gate changes that.
 
 **Under MiCA** (in full force since 30 Dec 2024; the transitional window closed
 1 July 2026), marketing must be fair, clear, not misleading, and consistent with

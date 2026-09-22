@@ -832,6 +832,43 @@ function skyAt(t){
 }
 
 /* =====================================================================
+   Demo gate
+   ===================================================================== */
+/*
+ * The page ships in PRODUCTION posture. Every developer affordance — the
+ * Sim / Manual / Live switch, the Feed setup drawer (which holds the Compliant
+ * / Hype banner toggle) and Reset — is opt-in with `?demo=1`.
+ *
+ * WHY THIS EXISTS
+ *
+ * Two things were wrong with shipping them on by default, and both were
+ * measured rather than assumed:
+ *
+ *  1. The compiled-in feed mode was `sim`, a local random walk. A visitor to the
+ *     deployed site watched a market cap climb in real time and move on its own
+ *     — measured $12,417 -> $11,983 in five seconds — with the only disclosure
+ *     an 11px grey "simulated feed" label sitting beside a 20px number. That
+ *     reads as real market data, and for a token that has not launched it is
+ *     fabricated.
+ *
+ *  2. The Compliant / Hype banner toggle was in the visitor's hands. INTEGRATION
+ *     section 4 is explicit that Hype copy ships OFF because the imperative
+ *     sentence is the legally exposed part. A toggle the public can flip does
+ *     not achieve that: a screenshot of the site in Hype mode is
+ *     indistinguishable from the site shipping Hype mode, and the warning box
+ *     explaining the exposure sits inside the very drawer a screenshot crops.
+ *
+ * `?demo=1` restores all of it for a live demo.
+ *
+ * This is a client-side gate, and it is worth being precise about what it does
+ * and does not do. It stops the SHIPPED PAGE from offering these, which is the
+ * standard that matters: the exposure in section 4 is about what the site
+ * publishes, not about what a determined person can do in devtools — and anyone
+ * in devtools can edit the page's text anyway.
+ */
+const DEMO = new URLSearchParams(location.search).has('demo');
+
+/* =====================================================================
    State
    ===================================================================== */
 const state = {
@@ -839,7 +876,9 @@ const state = {
   buys: 0, sells: 0, holders: 0,
   buySol: 0, sellSol: 0,
   reached: new Set(),
-  copyMode: 'safe', feedMode: 'sim',
+  /* `sim` is the right default for a demo and the wrong one for a launch, so
+     the demo gate decides it rather than a constant deciding it. */
+  copyMode: 'safe', feedMode: DEMO ? 'sim' : 'live',
   speed: 1, endpoint: '', pollMs: 1500,
   skyT: 0.30, skyAuto: true, cycleSec: 120
 };
@@ -1874,8 +1913,14 @@ function startManual(){
 function startLive(){
   const url = state.endpoint.trim();
   if (!url){
-    setFeedState('off', 'no endpoint set');
-    Tape.push('sell', 'Live feed needs an endpoint — open Feed setup');
+    /* The wording depends on who is reading. "no endpoint set" is what the
+       operator needs to see; a visitor should not be told to open a control
+       that the production posture hides, and "awaiting launch" is also the
+       truthful state for a token that has not launched yet. */
+    setFeedState('off', DEMO ? 'no endpoint set' : 'awaiting launch');
+    Tape.push('sell', DEMO
+      ? 'Live feed needs an endpoint — open Feed setup'
+      : 'The live feed starts when the token launches');
     feedHandle = { stop(){} };
     return;
   }
@@ -2313,11 +2358,44 @@ const Settings = (() => {
 /* =====================================================================
    Boot
    ===================================================================== */
+/*
+ * Apply the demo gate and start whatever feed mode resulted.
+ *
+ * One function rather than a branch at boot and another at the mode buttons:
+ * the two postures cannot drift apart if there is only one place that decides
+ * what the page offers. Hidden with `display:none` rather than removed, so a
+ * visitor who types `?demo=1` gets the whole console back on the same code path.
+ */
+function applyPosture(){
+  if (!DEMO){
+    document.querySelectorAll('.controls .seg, #btn-settings, #btn-reset')
+      .forEach(el => { el.style.display = 'none'; });
+    /* Belt and braces: the drawer is only reachable through the button above,
+       but if it were ever left open by a stylesheet change the Hype toggle
+       inside it would be reachable again. */
+    $('drawer').classList.remove('open');
+    state.copyMode = 'safe';
+    state.feedMode = 'live';
+  }
+
+  /* Keep the buttons agreeing with the state, which matters most in demo mode
+     where `sim` is the starting mode but the markup's default is arbitrary. */
+  document.querySelectorAll('[data-feed]').forEach(b =>
+    b.classList.toggle('on', b.dataset.feed === state.feedMode));
+  document.querySelectorAll('[data-copy]').forEach(b =>
+    b.classList.toggle('on', b.dataset.copy === state.copyMode));
+
+  stopFeed();
+  if (state.feedMode === 'sim') startSim();
+  else if (state.feedMode === 'manual') startManual();
+  else startLive();
+}
+
 seedReached();
 Scene.applySky(state.skyT);
 Scene.update(state.mcShown);
 Ladder.update(state.mcShown);
-startSim();
+applyPosture();
 requestAnimationFrame(loop);
 
 /* Published settings arrive asynchronously and are applied when they land. The
