@@ -175,6 +175,20 @@ shared: one leak would otherwise be two.
 3. **Deploy.** Vercel picks up `api/` automatically. `vercel.json` turns on clean
    URLs so `/admin` resolves, and marks it `noindex`.
 
+4. **Go live without a redeploy.** Open `/admin`, paste the CA, and fill in
+   **Upstream feed URL** — the provider template with `{mint}` where the address
+   goes, e.g. `https://provider.example/v1/token/{mint}`. Publishing those two
+   *is* the launch: `/api/feed` reads the mint and the upstream out of the row,
+   and the page starts polling its own `/api/feed` the moment a `feed_url` is
+   published. `PEAK_MINT` / `PEAK_UPSTREAM` are only fallbacks for a deployment
+   that has not published anything yet.
+
+   Until both are set, the site says *awaiting launch*, the market readouts stay
+   dashed, and **no request is made to `/api/feed` at all** — it does not poll for
+   nothing and it does not invent a number. With only the CA published, the CA
+   shows and the readouts stay dashed, because there is no upstream to read.
+   `probe-live-wiring.mjs` asserts all four of those states.
+
 ### The chain check
 
 Pasting a contract address is the one action here that can cost someone money —

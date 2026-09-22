@@ -1956,8 +1956,12 @@ function startLive(){
     if (!alive) return;
     try {
       const r = await fetch(url, { cache:'no-store' });
-      apply(await r.json());
-      setFeedState('live', 'polling');
+      const d = await r.json();
+      apply(d);
+      /* A pending frame is the server saying it has nothing yet — not a market
+         at zero. Lighting the indicator green for it would claim a live feed
+         that is not live. */
+      setFeedState(d.pending ? 'off' : 'live', d.pending ? 'awaiting launch' : 'polling');
     } catch(_){ setFeedState('off', 'feed unreachable'); }
     if (alive) setTimeout(poll, state.pollMs);
   };
@@ -1973,10 +1977,11 @@ const fin = v => (typeof v === 'number' && Number.isFinite(v)) ? v : null;
 function apply(d){
   const prevMc = state.mc;
   const mcIn = fin(d.marketCapUsd) ?? fin(d.mc);
-  /* Only a frame carrying a market cap counts as data. A `{pending:true}`
-     heartbeat carries none, so it leaves the readouts dashed rather than
-     inventing a value for a token that has not launched. */
-  if (mcIn !== null){ state.mc = Math.max(0, mcIn); state.hasData = true; }
+  /* Only a frame carrying a real market cap counts as data. /api/feed answers a
+     pending launch with a ZEROED frame plus `pending: true`, so testing the
+     number alone is not enough — 0 is a finite number, and the readouts would
+     otherwise have shown "$0" for a token that has not launched. */
+  if (mcIn !== null && !d.pending){ state.mc = Math.max(0, mcIn); state.hasData = true; }
 
   const priceIn = fin(d.priceUsd);
   state.price = priceIn !== null ? Math.max(0, priceIn) : state.mc / CONFIG.token.supply;
@@ -2325,6 +2330,20 @@ const Settings = (() => {
        their browser, so this never overwrites a choice made here. */
     if (row.feed_url && !$('in-endpoint').value.trim()){
       $('in-endpoint').value = '/api/feed';
+    }
+    /* ...but the box is only a control. The feed reads `state.endpoint`, and
+       assigning `.value` above does NOT fire `input`, so the handler that syncs
+       the two never ran. With a CA and a feed_url published, the page therefore
+       sat on "awaiting launch" for ever and never requested /api/feed at all —
+       which is the one failure api/feed.js exists to prevent. Measured: zero
+       requests to /api/feed in nine seconds with a fully published row, while
+       the CA itself rendered correctly.
+
+       The guard keeps this idempotent, because apply() runs on every poll. */
+    const boxed = $('in-endpoint').value.trim();
+    if (boxed && boxed !== state.endpoint){
+      state.endpoint = boxed;
+      if (state.feedMode === 'live'){ stopFeed(); startLive(); }
     }
   }
 
