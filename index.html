@@ -2003,7 +2003,14 @@ function apply(d){
   state.sellSol = lastSellSol;
 
   const holdersIn = fin(d.holders);
-  if (holdersIn !== null){ state.holders = Math.max(0, holdersIn); state.hasHolders = true; }
+  /* `!d.pending` for the same reason the market cap needs it: /api/feed answers a
+     pending launch with a ZEROED frame, and `holders: 0` in that frame is not a
+     holder count — it marked holders as known and rendered "0 holders" for a
+     token nobody had counted. */
+  if (holdersIn !== null && !d.pending){
+    state.holders = Math.max(0, holdersIn);
+    state.hasHolders = true;
+  }
 
   checkCamps(prevMc, state.mc);
 }
