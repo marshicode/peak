@@ -309,6 +309,10 @@
   .ticker .ev.buy .tag{background:var(--green-dim);color:var(--green);}
   .ticker .ev.sell .tag{background:#3b1d1d;color:#fca5a5;}
   .ticker .ev.camp .tag{background:#3a2d0c;color:var(--amber);}
+  /* An informational line — "the live feed starts when the token launches" — must
+     not be tagged SELL. It is not a trade, and a red SELL tag on a pre-launch
+     page reads as one. */
+  .ticker .ev.note .tag{background:#1d2735;color:var(--ink-2);}
 
   /* ============ DRAWER ============ */
   .drawer{
@@ -459,12 +463,11 @@
     </div>
 
     <div class="controls">
-      <div class="feedstate" id="feedstate"><span class="led"></span><span id="feedlabel">simulated feed</span></div>
-      <div class="seg">
-        <button class="btn on" data-feed="sim">Sim</button>
-        <button class="btn" data-feed="manual">Manual</button>
-        <button class="btn" data-feed="live">Live</button>
-      </div>
+      <!-- Live, and only live. There is no mode switch any more: a visitor could
+           otherwise put the site into a local random walk, and the release build
+           has no use for one. The indicator stays, because it is the only thing
+           on the page that tells a visitor whether the numbers are real. -->
+      <div class="feedstate" id="feedstate"><span class="led"></span><span id="feedlabel">awaiting launch</span></div>
       <button class="btn" id="btn-settings">Feed setup</button>
       <button class="btn" id="btn-reset">Reset</button>
       <button class="btn routebtn" id="btn-route">Route</button>
@@ -504,15 +507,6 @@
         <div class="row">
           <label>Poll interval (ms)</label>
           <input type="number" id="in-poll" value="1500" min="300" step="100">
-        </div>
-        <div class="row">
-          <label>Simulated climb speed <span id="spd-val" style="font-family:var(--mono);color:var(--ink-3)">1.0×</span></label>
-          <input type="range" id="in-speed" min="0.2" max="4" step="0.1" value="1">
-        </div>
-        <div class="row">
-          <label>Manual market cap</label>
-          <input type="range" id="in-manual" min="0" max="1000000" step="1000" value="12000">
-          <div class="hint" id="manual-val">$12,000</div>
         </div>
         <div class="row">
           <label>Day / night cycle length <span id="cyc-val" style="font-family:var(--mono);color:var(--ink-3)">120s</span></label>
@@ -876,10 +870,10 @@ const state = {
   buys: 0, sells: 0, holders: 0,
   buySol: 0, sellSol: 0,
   reached: new Set(),
-  /* `sim` is the right default for a demo and the wrong one for a launch, so
-     the demo gate decides it rather than a constant deciding it. */
-  copyMode: 'safe', feedMode: DEMO ? 'sim' : 'live',
-  speed: 1, endpoint: '', pollMs: 1500,
+  /* The feed is live-only. There is no mode to choose, so there is no mode in
+     the state — the endpoint comes from the published settings row. */
+  copyMode: 'safe',
+  endpoint: '', pollMs: 1500,
   skyT: 0.30, skyAuto: true, cycleSec: 120,
   /* Whether a real frame has ever arrived.
      `mc` above is the climb POSITION and is always defined, because the
@@ -1884,44 +1878,14 @@ function setFeedState(kind, label){
   $('feedlabel').textContent = label;
 }
 
-function startSim(){
-  let mc = state.mc, buys = state.buys, sells = state.sells, holders = state.holders;
-  let buySol = state.buySol, sellSol = state.sellSol;
-  setFeedState('sim', 'simulated feed');
-  const tick = () => {
-    const vol = 0.008 + Math.random()*0.022;
-    const dir = Math.random() < 0.56 ? 1 : -1;
-    mc = Math.max(2000, mc * (1 + vol*dir));
-    let dbuys = 0, dsells = 0;
-    if (Math.random() < 0.72) dbuys  = 1 + ((Math.random()*3)|0);
-    if (Math.random() < 0.42) dsells = 1 + ((Math.random()*2)|0);
-    buys  += dbuys; sells += dsells;
-    /* every trade is sized in SOL, a few whales show up on the buy side */
-    buySol  += dbuys  * (0.05 + Math.random()*0.6) + (Math.random() < 0.06 ? 1.5 + Math.random()*4 : 0);
-    sellSol += dsells * (0.05 + Math.random()*0.5);
-    if (Math.random() < 0.22) holders += 1 + ((Math.random()*4)|0);
-    apply({ marketCapUsd:mc, priceUsd: mc/CONFIG.token.supply, buys, sells, holders,
-            buySol, sellSol });
-  };
-  /* `speed` is the climb rate, so it is applied exactly once — to the tick
-     rate only. Scaling the per-tick volatility as well made the walk
-     quadratic, so 4× read as 16×. 1100/4 = 275 ms sits above the floor, which
-     keeps the multiplier honest across the whole slider range. */
-  const id = setInterval(tick, Math.max(120, 1100/state.speed));
-  feedHandle = { stop: () => clearInterval(id) };
-}
-
-function startManual(){
-  /* bring the slider in line with wherever the climb actually is, so the
-     control never disagrees with the mountain it drives */
-  const s = $('in-manual');
-  s.value = String(clamp(Math.round(state.mc), +s.min, +s.max));
-  $('manual-val').textContent = fmtMoney(+s.value);
-  setFeedState('off', 'manual control');
-  /* A manual value is asserted by an operator, so it is reportable. */
-  state.hasData = true;
-  feedHandle = { stop(){} };
-}
+/* startSim() and startManual() used to live here.
+ *
+ * The feed is live-only now, so the site can no longer be put into a local
+ * random walk. Removing the code rather than hiding the buttons is the point: a
+ * hidden control is one stylesheet change — or one devtools session — away from
+ * being reachable again, and this one let a visitor watch a fabricated market cap
+ * climb. With the functions gone there is nothing to reach.
+ */
 
 function startLive(){
   const url = state.endpoint.trim();
@@ -1933,7 +1897,7 @@ function startLive(){
     setFeedState('off', DEMO ? 'no endpoint set' : 'awaiting launch');
     /* Nothing has been measured, so nothing is reported. */
     state.hasData = false;
-    Tape.push('sell', DEMO
+    Tape.push('note', DEMO
       ? 'Live feed needs an endpoint — open Feed setup'
       : 'The live feed starts when the token launches');
     feedHandle = { stop(){} };
@@ -2094,18 +2058,8 @@ function loop(t){
 /* =====================================================================
    UI wiring
    ===================================================================== */
-document.querySelectorAll('[data-feed]').forEach(b => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('[data-feed]').forEach(x => x.classList.remove('on'));
-    b.classList.add('on');
-    state.feedMode = b.dataset.feed;
-    stopFeed();
-    if (state.feedMode === 'sim') startSim();
-    else if (state.feedMode === 'manual') startManual();
-    else startLive();
-  });
-});
-
+/* There is no mode switch to wire: the feed is live, and the endpoint comes
+   from the published settings row rather than from a button. */
 document.querySelectorAll('[data-copy]').forEach(b => {
   b.addEventListener('click', () => {
     document.querySelectorAll('[data-copy]').forEach(x => x.classList.remove('on'));
@@ -2119,21 +2073,9 @@ $('btn-settings').addEventListener('click', () => $('drawer').classList.toggle('
 $('in-endpoint').addEventListener('input', e => { state.endpoint = e.target.value; });
 $('in-poll').addEventListener('input', e => { state.pollMs = Math.max(300, +e.target.value || 1500); });
 
-$('in-speed').addEventListener('input', e => {
-  state.speed = +e.target.value;
-  $('spd-val').textContent = state.speed.toFixed(1) + '×';
-  if (state.feedMode === 'sim'){ stopFeed(); startSim(); }
-});
-
 $('in-cycle').addEventListener('input', e => {
   state.cycleSec = +e.target.value;
   $('cyc-val').textContent = state.cycleSec + 's';
-});
-
-$('in-manual').addEventListener('input', e => {
-  const v = +e.target.value;
-  $('manual-val').textContent = fmtMoney(v);
-  if (state.feedMode === 'manual') apply({ marketCapUsd: v, priceUsd: v / CONFIG.token.supply });
 });
 
 $('sky-time').addEventListener('input', e => {
@@ -2157,11 +2099,10 @@ $('btn-reset').addEventListener('click', () => {
   lastBuys = 0; lastSells = 0; lastBuySol = 0; lastSellSol = 0;
   seedReached();
   $('rail').innerHTML = '';
-  $('in-manual').value = 12000;
-  $('manual-val').textContent = fmtMoney(12000);
-  if (state.feedMode === 'sim') startSim();
-  else if (state.feedMode === 'manual') startManual();
-  else startLive();
+  /* The counters are cleared, so nothing has been measured since — the readouts
+     go back to dashes until the next real frame arrives. */
+  state.hasData = false;
+  startLive();
 });
 
 /* =====================================================================
@@ -2343,7 +2284,7 @@ const Settings = (() => {
     const boxed = $('in-endpoint').value.trim();
     if (boxed && boxed !== state.endpoint){
       state.endpoint = boxed;
-      if (state.feedMode === 'live'){ stopFeed(); startLive(); }
+      stopFeed(); startLive();
     }
   }
 
@@ -2410,36 +2351,32 @@ const Settings = (() => {
    Boot
    ===================================================================== */
 /*
- * Apply the demo gate and start whatever feed mode resulted.
+ * Apply the demo gate and start the feed.
  *
- * One function rather than a branch at boot and another at the mode buttons:
- * the two postures cannot drift apart if there is only one place that decides
- * what the page offers. Hidden with `display:none` rather than removed, so a
- * visitor who types `?demo=1` gets the whole console back on the same code path.
+ * One function rather than a branch at boot and another somewhere else, so the
+ * two postures cannot drift apart. Hidden with `display:none` rather than
+ * removed, so `?demo=1` gets the console back on the same code path.
+ *
+ * The FEED has no posture — it is live either way, and the endpoint comes from
+ * the published settings row. What the gate hides is the operator's drawer
+ * (endpoint box, poll interval, and the Compliant/Hype banner toggle) plus Reset.
  */
 function applyPosture(){
   if (!DEMO){
-    document.querySelectorAll('.controls .seg, #btn-settings, #btn-reset')
+    document.querySelectorAll('#btn-settings, #btn-reset')
       .forEach(el => { el.style.display = 'none'; });
     /* Belt and braces: the drawer is only reachable through the button above,
        but if it were ever left open by a stylesheet change the Hype toggle
        inside it would be reachable again. */
     $('drawer').classList.remove('open');
     state.copyMode = 'safe';
-    state.feedMode = 'live';
   }
 
-  /* Keep the buttons agreeing with the state, which matters most in demo mode
-     where `sim` is the starting mode but the markup's default is arbitrary. */
-  document.querySelectorAll('[data-feed]').forEach(b =>
-    b.classList.toggle('on', b.dataset.feed === state.feedMode));
   document.querySelectorAll('[data-copy]').forEach(b =>
     b.classList.toggle('on', b.dataset.copy === state.copyMode));
 
   stopFeed();
-  if (state.feedMode === 'sim') startSim();
-  else if (state.feedMode === 'manual') startManual();
-  else startLive();
+  startLive();
 }
 
 seedReached();

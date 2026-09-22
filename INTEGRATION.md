@@ -7,16 +7,22 @@ design decision in this build that carries legal exposure.
 
 ## 1. Running it
 
-Open `index.html` in a browser. It works immediately on the **simulated feed** —
-no build step, no dependencies, no server.
+Open `index.html` in a browser — no build step, no dependencies, no server.
 
-Three feed modes:
+**There is one feed, and it is live.** The page polls `/api/feed`, which reads the
+mint and the upstream provider out of the published settings row (§5). With
+nothing published it says *awaiting launch*, shows dashes for every market
+readout, and makes no request at all.
 
-| Mode | What it does |
-|---|---|
-| **Sim** | Generates a random-walk market cap and buy/sell counts locally. Default. |
-| **Manual** | You drive the market cap with a slider. Best for demos and screenshots. |
-| **Live** | Polls a JSON endpoint (or subscribes to a WebSocket) that you provide. |
+Earlier versions had three modes — a local random walk (**Sim**), a
+slider-driven market cap (**Manual**), and **Live**. Sim and Manual are **gone**,
+not hidden. The reason is in §4: a mode a visitor can select is a mode the site
+can be screenshotted in, and "a fabricated market cap climbing" is exactly what a
+visitor must never see. Deleting the code is the only version of that which stays
+true after a stylesheet change.
+
+For development, `node feed-proxy.mjs` serves a mock on
+`http://localhost:8787/peak-feed`, and `?demo=1` reveals the endpoint box.
 
 ---
 
@@ -139,9 +145,10 @@ the build — open the page with **`?demo=1`** and switch **Banner copy mode →
 Hype** in Feed setup to see it. It ships **off** by default, and here's why.
 
 **And it is not reachable without that flag.** The page ships in production
-posture: the Sim / Manual / Live switch, the Feed setup drawer and Reset are all
-hidden, and the feed runs in Live mode with the banner locked to the compliant
-copy. `?demo=1` restores the whole console for a demo.
+posture: the Feed setup drawer and Reset are hidden, and the banner is locked to
+the compliant copy. `?demo=1` restores the console for a demo. (There is no feed
+mode switch to hide any more — the feed is live-only and the code for a simulated
+climb has been deleted, which is a stronger guarantee than hiding a button.)
 
 That distinction turned out to matter more than the default did. "Ships off by
 default" was true of the *setting* and false of the *page*: the toggle was in the
@@ -226,7 +233,7 @@ Same celebration, same momentum, no imperative. Things that work:
 | Camp ladder with per-rung progress bars | `Ladder` module |
 | Banner with Compliant / Hype copy modes | `Banner`, `CONFIG.copy` |
 | Live tape of buys, sells and camps | `Tape` module |
-| Sim / Manual / Live feed adapters | `startSim()`, `startManual()`, `startLive()` |
+| Live feed | `startLive()` — the only one there is |
 | Feed proxy with mock + live modes | `feed-proxy.mjs` |
 
 ---

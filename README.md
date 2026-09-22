@@ -12,14 +12,14 @@ The name is PEAK. The product is the mountain.
 
 ## Start here
 
-Open **`index.html`** in a browser. No build, no dependencies, no server.
-It runs on a simulated feed immediately.
+Open **`index.html`** in a browser. No build, no dependencies, no server. With
+nothing connected it reads *awaiting launch* and shows dashes — it does not invent
+a market cap.
 
-Try this: **Feed setup → Manual**, then drag the market cap slider and watch the
-massif emerge from the glacier, the snowline rise, and the camps light up one by
-one. Then scrub the day/night slider in the bottom-right corner and watch the
-whole scene change — alpenglow at sunrise, white light at noon, blue shadow at
-night.
+To watch the whole climb without a provider, open it with **`?demo=1`** and drive
+the climb from the console, or point it at a feed. Scrub the day/night slider in
+the bottom-right corner to watch the scene change — alpenglow at sunrise, white
+light at noon, blue shadow at night.
 
 ---
 
@@ -54,9 +54,14 @@ The page ships in **production posture**. These are hidden:
 
 | Hidden | Why |
 |---|---|
-| Sim / Manual / Live | A visitor could otherwise switch the site to a local random walk and watch a fabricated market cap climb. |
-| Feed setup | Holds the Compliant / Hype banner toggle — see `INTEGRATION.md` §4. |
+| Feed setup | Holds the endpoint box and the Compliant / Hype banner toggle — see `INTEGRATION.md` §4. |
 | Reset | Clears the counters; not a visitor's action. |
+
+There is **no feed mode switch**, in either posture. The feed is live and only
+live: a visitor cannot put the site into a local random walk, and the code for one
+is gone rather than hidden. The status indicator beside the market cap is the only
+thing that says whether the numbers are real — *awaiting launch*, *polling*, or
+*feed unreachable*.
 
 The feed runs in **Live** mode. With nothing connected it says *awaiting launch*,
 and every market readout shows **—** — market cap, price, altitude, buys/sells and
@@ -76,10 +81,10 @@ the next camp) and the **summit target** in the scene HUD, because those are
 properties of the climb rather than readings from a market. The route button
 stays available too, because the route is public.
 
-Open **`?demo=1`** to get the whole console back — Sim mode, the manual market
-cap slider, the feed endpoint, the speed and cycle controls, and the Hype
-toggle. That is the posture for demos and screenshots; it is the same code path,
-so the two cannot drift apart.
+Open **`?demo=1`** to get the console back — the endpoint box, the poll interval,
+the day/night cycle length and the Hype toggle. That is the posture for demos and
+screenshots; it is the same code path, so the two cannot drift apart. Note that
+`?demo=1` does **not** turn on a simulated feed: there is no longer one to turn on.
 
 This is a client-side gate. It stops the shipped page from *offering* these,
 which is what matters: anyone in devtools can edit the page's text anyway, and no
@@ -117,20 +122,27 @@ Feed setup.
 
 ---
 
-## Feed modes
+## The feed
 
-| Mode | Use |
-|---|---|
-| **Sim** | Local random walk. Default. Good for development. |
-| **Manual** | Slider-driven market cap. Best for demos and screenshots. |
-| **Live** | Polls your JSON endpoint or subscribes to a WebSocket. |
+There is one feed: **live**. The page polls `/api/feed`, which reads the mint and
+the upstream provider out of the published settings row — so publishing a CA and
+an upstream URL is the whole launch, with no redeploy. Until both are published
+the page says *awaiting launch*, shows dashes, and makes no request at all.
+
+There is deliberately no simulated or manual mode in the shipped page. A mode
+switch is what let a visitor watch a fabricated market cap climb, and hiding it
+behind a flag was not enough — the code is gone.
+
+For local development, run the mock upstream and point the endpoint box at it
+(open the page with `?demo=1` to see that box):
 
 ```bash
 node feed-proxy.mjs                    # mock, no key needed
 ```
 
-Then point Feed setup at `http://localhost:8787/peak-feed`. See
-`INTEGRATION.md` for the data contract and provider options.
+Then point Feed setup at `http://localhost:8787/peak-feed`. See `INTEGRATION.md`
+for the data contract and provider options, and `GET /api/feed?health=1` to see
+what a real upstream is actually returning.
 
 ---
 
