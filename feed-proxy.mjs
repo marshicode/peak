@@ -161,7 +161,7 @@ async function pull(){
     return;
   }
   try {
-    const url = UPSTREAM.replace('{mint}', encodeURIComponent(MINT));
+    const url = UPSTREAM.replaceAll('{mint}', encodeURIComponent(MINT));
     const res = await fetch(url, {
       headers: API_KEY ? { Authorization: `Bearer ${API_KEY}`, 'X-API-KEY': API_KEY } : {},
       cache: 'no-store'
@@ -191,7 +191,17 @@ const CORS = {
 };
 
 http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  /* A malformed Host header ("Host: a:b:c") or an absolute-form request line
+     makes `new URL` throw. An uncaught throw inside a request handler is not
+     caught by Node — it terminates the process, so a single bad request would
+     take the feed down for every connected browser. Answer 400 and stay up. */
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  } catch {
+    res.writeHead(400, CORS);
+    return res.end('bad request');
+  }
 
   if (req.method === 'OPTIONS'){
     res.writeHead(204, CORS);
@@ -217,6 +227,14 @@ http.createServer((req, res) => {
 }).listen(PORT, () => {
   console.log(`PEAK feed proxy on http://localhost:${PORT}/peak-feed`);
   console.log(`  mode:     ${MODE}`);
-  if (MODE === 'live') console.log(`  mint:     ${MINT}\n  upstream: ${UPSTREAM}`);
-  else console.log('  no PEAK_MINT/PEAK_UPSTREAM set — serving mock data');
+  if (MODE === 'live'){
+    console.log(`  mint:     ${MINT}\n  upstream: ${UPSTREAM}`);
+    if (!UPSTREAM.includes('{mint}'))
+      console.warn('  warning:  PEAK_UPSTREAM has no {mint} placeholder — the mint will not be sent upstream');
+  } else {
+    console.log('  no PEAK_MINT/PEAK_UPSTREAM set — serving mock data');
+    if (MINT || UPSTREAM)
+      console.warn(`  warning:  live mode needs BOTH PEAK_MINT and PEAK_UPSTREAM ` +
+                   `(got mint=${MINT ? 'yes' : 'no'}, upstream=${UPSTREAM ? 'yes' : 'no'}) — serving mock`);
+  }
 });

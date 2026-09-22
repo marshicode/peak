@@ -27,25 +27,42 @@
     background:var(--bg);color:var(--ink);
     font-family:var(--sans);font-size:14px;line-height:1.5;
     -webkit-font-smoothing:antialiased;overflow:hidden;
+    overscroll-behavior:none;
   }
-  .app{height:100vh;display:grid;grid-template-rows:auto 1fr auto;}
+  /* dvh, so a mobile URL bar does not crop the scene.
+     The column is written out as minmax(0,1fr) rather than left implicit: an
+     implicit `auto` column is clamped BELOW by the widest item's min-content
+     width, so the top bar's min-content (681px on a 390px phone) was widening
+     the whole app and taking the scene panel with it — the page scrolled
+     sideways and the mountain was cropped. minmax(0,1fr) pins the column to
+     the container and lets the children shrink instead. */
+  .app{
+    height:100vh;height:100dvh;display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto;
+  }
 
   /* ============ TOP BAR ============ */
   .topbar{
-    display:flex;align-items:center;gap:22px;
-    padding:11px 20px;background:var(--panel);
+    display:flex;align-items:center;gap:16px;row-gap:7px;flex-wrap:wrap;
+    padding:10px 18px;background:var(--panel);
     border-bottom:1px solid var(--line);position:relative;z-index:30;
   }
-  .brand{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-  .brand .glyph{width:28px;height:28px;display:block;}
-  .brand .name{font-size:17px;font-weight:600;letter-spacing:.16em;}
+  .brand{display:flex;align-items:center;gap:9px;flex:0 0 auto;}
+  .brand .glyph{width:27px;height:27px;display:block;}
+  .brand .name{font-size:16.5px;font-weight:600;letter-spacing:.16em;}
   .brand .tick{
     font-family:var(--mono);font-size:11px;font-weight:600;
     color:var(--green);background:var(--green-dim);
     padding:2px 8px;border-radius:5px;letter-spacing:.06em;
   }
-  .stats{display:flex;align-items:center;gap:24px;flex:1;min-width:0;}
-  .stat{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  /* the stats row scrolls rather than crushing, on any width */
+  .stats{
+    display:flex;align-items:center;gap:22px;flex:1 1 400px;min-width:0;
+    overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  }
+  .stats::-webkit-scrollbar{display:none;}
+  .stat{display:flex;flex-direction:column;gap:1px;flex:0 0 auto;}
   .stat .k{
     font-size:10px;text-transform:uppercase;letter-spacing:.11em;
     color:var(--ink-3);font-weight:600;white-space:nowrap;
@@ -56,7 +73,7 @@
   }
   .stat .v.big{font-size:20px;color:var(--green);}
   .stat .v.small{font-size:13px;color:var(--ink-2);}
-  .controls{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .controls{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:auto;}
   .btn{
     font-family:var(--sans);font-size:11.5px;font-weight:600;
     letter-spacing:.05em;text-transform:uppercase;
@@ -70,20 +87,33 @@
   .seg{display:flex;border:1px solid var(--line-2);border-radius:7px;overflow:hidden;}
   .seg .btn{border:none;border-radius:0;border-right:1px solid var(--line-2);}
   .seg .btn:last-child{border-right:none;}
+  /* shown only when the ladder becomes an overlay */
+  .routebtn,.ladder-x{display:none;align-items:center;}
+  .ladder-x{
+    background:transparent;border:1px solid var(--line-2);border-radius:6px;
+    color:var(--ink-2);cursor:pointer;padding:2px 7px;font-size:14px;line-height:1;
+  }
+  .ladder-x:hover{color:var(--ink);border-color:#3a4a63;}
 
   /* ============ STAGE ============ */
-  .stage{display:grid;grid-template-columns:1fr 336px;min-height:0;}
+  .stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 336px;min-height:0;}
   .scene{position:relative;min-height:0;overflow:hidden;border-right:1px solid var(--line);}
   #scene{position:absolute;inset:0;width:100%;height:100%;display:block;}
   #confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  /* vignette — pulls the eye to the massif without touching the SVG */
+  .scene::after{
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(125% 85% at 50% 40%,transparent 58%,rgba(3,6,12,.34) 100%);
+  }
 
   #banner{
-    position:absolute;top:16px;left:50%;transform:translate(-50%,-150%);
-    min-width:400px;max-width:76%;
-    background:linear-gradient(180deg,#12251a,#0d1a13);
-    border:1px solid #1e6b3f;border-radius:12px;
-    padding:12px 20px;text-align:center;
-    box-shadow:0 16px 44px rgba(0,0,0,.66);
+    position:absolute;top:14px;left:50%;transform:translate(-50%,-150%);
+    min-width:380px;max-width:min(76%,560px);
+    background:linear-gradient(180deg,rgba(18,37,26,.97),rgba(11,22,16,.97));
+    backdrop-filter:blur(14px);
+    border:1px solid #1e6b3f;border-radius:14px;
+    padding:13px 22px;text-align:center;
+    box-shadow:0 18px 50px rgba(0,0,0,.7),0 0 0 1px rgba(34,197,94,.08) inset;
     transition:transform .5s cubic-bezier(.2,.9,.25,1.05),opacity .4s;
     opacity:0;pointer-events:none;z-index:20;
   }
@@ -98,7 +128,7 @@
     color:var(--ink-2);margin-left:8px;
   }
   #banner .bs{font-size:12.5px;color:var(--ink-2);}
-  #banner.hype{border-color:#8a5a12;background:linear-gradient(180deg,#2a1f0c,#1a1408);}
+  #banner.hype{border-color:#8a5a12;background:linear-gradient(180deg,rgba(42,31,12,.97),rgba(26,20,8,.97));}
   #banner.hype .bh{color:var(--amber);}
 
   /* HUD */
@@ -107,16 +137,16 @@
     display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:10;
   }
   .hud .pill{
-    background:rgba(11,16,24,.8);backdrop-filter:blur(9px);
-    border:1px solid var(--line-2);border-radius:7px;
+    background:rgba(9,13,20,.74);backdrop-filter:blur(10px);
+    border:1px solid var(--line-2);border-radius:8px;
     padding:5px 10px;font-family:var(--mono);font-size:11px;color:var(--ink-2);
     font-variant-numeric:tabular-nums;
   }
   .hud .pill b{color:var(--ink);font-weight:600;}
   .skyctl{
     margin-left:auto;display:flex;align-items:center;gap:9px;
-    background:rgba(11,16,24,.8);backdrop-filter:blur(9px);
-    border:1px solid var(--line-2);border-radius:8px;padding:4px 10px;
+    background:rgba(9,13,20,.74);backdrop-filter:blur(10px);
+    border:1px solid var(--line-2);border-radius:9px;padding:4px 10px;
   }
   .skyctl .ph{
     font-family:var(--mono);font-size:11px;color:var(--ink-2);
@@ -136,22 +166,26 @@
   /* ============ CAMP LADDER ============ */
   .ladder{background:var(--panel);display:flex;flex-direction:column;min-height:0;}
   .ladder-hd{
-    padding:12px 16px;border-bottom:1px solid var(--line);
-    display:flex;align-items:baseline;justify-content:space-between;
+    padding:13px 15px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
   }
   .ladder-hd h2{
     font-size:11px;letter-spacing:.15em;text-transform:uppercase;
     font-weight:700;color:var(--ink-2);
   }
-  .ladder-hd .cnt{font-family:var(--mono);font-size:11px;color:var(--ink-3);}
-  .rungs{flex:1;overflow-y:auto;padding:9px;}
+  .ladder-hd .cnt{
+    font-family:var(--mono);font-size:11px;color:var(--ink-3);
+    margin-left:auto;
+  }
+  .rungs{flex:1;overflow-y:auto;padding:10px 9px 14px;}
   .rungs::-webkit-scrollbar{width:7px;}
   .rungs::-webkit-scrollbar-thumb{background:#243044;border-radius:4px;}
+  .rungs::-webkit-scrollbar-track{background:transparent;}
 
   .rung{
-    position:relative;border:1px solid var(--line);border-radius:9px;
-    background:var(--panel-2);padding:10px 12px 10px 36px;margin-bottom:7px;
-    transition:.3s;
+    position:relative;border:1px solid var(--line);border-radius:10px;
+    background:var(--panel-2);padding:10px 12px 10px 37px;margin-bottom:8px;
+    transition:border-color .3s,background .3s,box-shadow .3s;
   }
   .rung .tent{
     position:absolute;left:11px;top:13px;width:16px;height:13px;
@@ -178,7 +212,11 @@
     display:block;height:100%;width:0;background:#16a34a;
     border-radius:2px;transition:width .5s ease-out;
   }
-  .rung.reached{border-color:#1c6b3f;background:linear-gradient(180deg,#0f2018,#0d1a14);}
+  .rung.reached{
+    border-color:#1c6b3f;
+    background:linear-gradient(180deg,#0f2018,#0d1a14);
+    box-shadow:0 0 0 1px rgba(34,197,94,.06) inset;
+  }
   .rung.reached .tent path{fill:var(--green);}
   .rung.reached .rname{color:var(--green);}
   .rung.reached .ralt{color:#4ade80;}
@@ -189,21 +227,21 @@
   .rung.next .tent{animation:bobtent 2.1s ease-in-out infinite;}
   @keyframes bobtent{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
   .ladder-ft{
-    padding:10px 16px;border-top:1px solid var(--line);
+    padding:10px 15px;border-top:1px solid var(--line);
     font-size:10.5px;color:var(--ink-3);line-height:1.55;
   }
 
   /* ============ TAPE ============ */
   .ticker{
-    height:33px;background:var(--panel);border-top:1px solid var(--line);
+    min-height:34px;background:var(--panel);border-top:1px solid var(--line);
     display:flex;align-items:center;overflow:hidden;
   }
   .ticker .lbl{
     flex-shrink:0;padding:0 14px;font-size:10px;font-weight:700;
     letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
-    border-right:1px solid var(--line);height:100%;display:flex;align-items:center;
+    border-right:1px solid var(--line);align-self:stretch;display:flex;align-items:center;
   }
-  .ticker .rail{flex:1;display:flex;gap:26px;padding-left:16px;white-space:nowrap;overflow:hidden;}
+  .ticker .rail{flex:1;display:flex;gap:26px;padding:7px 0 7px 16px;white-space:nowrap;overflow:hidden;}
   .ticker .ev{
     font-family:var(--mono);font-size:11.5px;color:var(--ink-2);
     display:flex;align-items:center;gap:7px;flex-shrink:0;animation:fadein .45s ease-out;
@@ -216,9 +254,9 @@
 
   /* ============ DRAWER ============ */
   .drawer{
-    position:absolute;top:14px;right:14px;width:344px;z-index:40;
-    background:var(--panel);border:1px solid var(--line-2);border-radius:12px;
-    padding:16px;box-shadow:0 22px 60px rgba(0,0,0,.75);display:none;
+    position:absolute;top:14px;right:14px;width:min(344px,calc(100% - 28px));z-index:40;
+    background:var(--panel);border:1px solid var(--line-2);border-radius:14px;
+    padding:16px;box-shadow:0 24px 64px rgba(0,0,0,.78);display:none;
     max-height:calc(100% - 28px);overflow-y:auto;
   }
   .drawer.open{display:block;}
@@ -241,14 +279,63 @@
     padding:10px 12px;font-size:11px;color:#fbbf24;line-height:1.55;margin-top:7px;
   }
   .feedstate{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);font-family:var(--mono);}
-  .feedstate .led{width:7px;height:7px;border-radius:50%;background:var(--amber);}
+  .feedstate .led{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:0 0 auto;}
   .feedstate.live .led{background:var(--green);animation:ledp 1.6s infinite;}
   .feedstate.off .led{background:var(--red);}
   @keyframes ledp{0%,100%{opacity:1;}50%{opacity:.3;}}
 
-  @media (max-width:1100px){
-    .stage{grid-template-columns:1fr;}
-    .ladder{display:none;}
+  /* ============ RESPONSIVE ============ */
+  /* below 1180 the ladder becomes a slide-over, so the scene keeps the full width */
+  @media (max-width:1180px){
+    .stage{grid-template-columns:minmax(0,1fr);overflow:hidden;}
+    .scene{border-right:none;}
+    .ladder{
+      position:absolute;top:10px;right:10px;bottom:10px;
+      width:min(360px,calc(100% - 20px));
+      border:1px solid var(--line-2);border-radius:14px;
+      box-shadow:0 26px 70px rgba(0,0,0,.82);
+      transform:translateX(calc(100% + 24px));
+      transition:transform .34s cubic-bezier(.2,.8,.25,1);
+      z-index:35;overflow:hidden;
+    }
+    .ladder.open{transform:none;}
+    .routebtn{display:inline-flex;}
+    .ladder-x{display:inline-flex;}
+  }
+  @media (max-width:900px){
+    .topbar{padding:9px 13px;gap:12px;}
+    .stat .v.big{font-size:18px;}
+    .stat .v.small{font-size:12.5px;}
+    .stats{gap:18px;}
+    #banner{min-width:0;}
+  }
+  @media (max-width:700px){
+    .brand .name{font-size:15px;letter-spacing:.12em;}
+    .brand .tick{display:none;}
+    .topbar{gap:10px;padding:9px 12px;}
+    /* stats take their own scrollable row; controls sit beside the brand.
+       The controls are `flex:0 0 auto` by default, so on a phone their
+       content width (471px) overflowed the bar. Let them shrink and wrap
+       among themselves instead. */
+    .stats{order:3;flex-basis:100%;gap:16px;}
+    .controls{order:2;gap:6px;flex:0 1 auto;min-width:0;flex-wrap:wrap;justify-content:flex-end;}
+    .btn{padding:6px 9px;font-size:11px;}
+    .hud{left:10px;right:10px;bottom:9px;gap:6px;}
+    .hud .pill{padding:4px 8px;font-size:10.5px;}
+    .skyctl{margin-left:0;flex-basis:100%;justify-content:space-between;}
+    .skyctl .ph{min-width:0;}
+    .skyctl input[type=range]{flex:1 1 auto;width:auto;min-width:60px;}
+    .ticker .rail{overflow-x:auto;scrollbar-width:none;}
+    .ticker .rail::-webkit-scrollbar{display:none;}
+    .drawer{left:10px;right:10px;width:auto;top:10px;max-height:calc(100% - 20px);}
+    #banner{width:calc(100% - 20px);max-width:none;padding:11px 15px;border-radius:12px;}
+    #banner .bt{font-size:16px;}
+    #banner .bs{font-size:11.5px;}
+    .ladder{top:8px;right:8px;bottom:8px;width:calc(100% - 16px);}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .rung.next .tent{animation:none;}
+    #banner{transition:opacity .2s;}
   }
 </style>
 </head>
@@ -285,6 +372,7 @@
       </div>
       <button class="btn" id="btn-settings">Feed setup</button>
       <button class="btn" id="btn-reset">Reset</button>
+      <button class="btn routebtn" id="btn-route">Route</button>
     </div>
   </header>
 
@@ -358,6 +446,7 @@
       <div class="ladder-hd">
         <h2>The route</h2>
         <span class="cnt" id="ladder-cnt">0 / 6</span>
+        <button class="ladder-x" id="ladder-x" aria-label="Close route panel">✕</button>
       </div>
       <div class="rungs" id="rungs"></div>
       <div class="ladder-ft">
@@ -436,14 +525,19 @@ function fmtMoney(n){
   return '$' + Math.round(n).toLocaleString('en-US');
 }
 function fmtShort(n){
+  if (!Number.isFinite(n)) return '—';
   if (n >= 1e6) return (n/1e6).toFixed(n % 1e6 ? 1 : 0).replace(/\.0$/,'') + 'M';
-  if (n >= 1000) return Math.round(n/1000) + 'k';
+  const k = Math.round(n/1000);
+  if (n >= 1000 && k < 1000) return k + 'k';
+  if (k >= 1000) return '1M';   /* 999,500–999,999 rounds up, not "1000k" */
   return String(n);
 }
 function fmtPrice(p){
+  if (!(p > 0)) return '$0';    /* also catches NaN and Infinity */
   if (p >= 1) return '$' + p.toFixed(4);
   if (p >= 0.01) return '$' + p.toFixed(6);
-  return '$' + p.toFixed(10).replace(/0+$/,'');
+  /* strip trailing zeros, then a trailing point — never emit a bare "$0." */
+  return '$' + p.toFixed(10).replace(/0+$/,'').replace(/\.$/,'');
 }
 function fmtAlt(m){ return Math.round(m).toLocaleString('en-US') + ' m'; }
 function fmtFt(m){ return Math.round(m * 3.28084).toLocaleString('en-US') + ' ft'; }
@@ -453,11 +547,75 @@ function hex2rgb(h){ const n = parseInt(h.slice(1), 16); return [n>>16 & 255, n>
 function rgb2hex(r){ return '#' + r.map(v => clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join(''); }
 function mixHex(a, b, k){ const A = hex2rgb(a), B = hex2rgb(b); return rgb2hex([lerp(A[0],B[0],k), lerp(A[1],B[1],k), lerp(A[2],B[2],k)]); }
 
-/* map a scene coordinate to a canvas pixel (SVG letterboxes inside the panel) */
+/* =====================================================================
+   Scene framing
+   ---------------------------------------------------------------------
+   The massif is drawn in a fixed 760-unit design space, but the scene itself
+   is made as wide as the panel needs. `fitScene()` sets the viewBox to the
+   panel's exact aspect ratio — so nothing letterboxes and the mountain fills
+   the screen at any shape — and centres the massif inside it. Everything
+   drawn in design space lives in #world, offset by `sceneDX`.
+   ===================================================================== */
+const SCENE_H = 520;
+const SCENE_MAX_W = 2200, SCENE_MAX_H = 2000;
+/* A tall frame narrows the design-space window instead of keeping all 760
+   units of width and growing the height. The design space is a landscape
+   composition, so holding the full width and letting the height grow left the
+   massif as a small triangle marooned in sky: at 390x844 it filled 31% of the
+   frame. Narrowing the window scales the massif up to fill the width, and the
+   far flanks crop — which reads as a closer view of the climb, not as a
+   missing mountain.
+   SCENE_TALL caps how much taller than the design space the window may get
+   before it starts cropping; SCENE_MIN_W stops it zooming into the summit
+   alone. Both are in design units. */
+const SCENE_TALL = 1.25, SCENE_MIN_W = 460;
+/* the route runs to the summit at x=400, so that is what the window centres on */
+const SCENE_FOCUS_X = 400;
+let sceneW = 760, sceneH = SCENE_H, sceneDX = 0, sceneDY = 0;
+/* canvas pixels per design unit — the inverse of what scene furniture needs */
+let sceneScale = 1;
+
+function fitScene(){
+  const r = $('scenewrap').getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const aspect = r.width / r.height;
+
+  if (aspect >= GEO.w / SCENE_H){
+    /* wide: grow sideways and keep the massif centred */
+    sceneW = clamp(SCENE_H * aspect, GEO.w, SCENE_MAX_W);
+    sceneH = SCENE_H;
+    sceneDX = (sceneW - GEO.w)/2;
+    sceneDY = 0;
+  } else {
+    /* tall: narrow the window until the massif is a decent size, then spend
+       what is left on sky above and ice below */
+    sceneW = clamp(aspect * SCENE_H * SCENE_TALL, SCENE_MIN_W, GEO.w);
+    sceneH = sceneW / aspect;
+    if (sceneH > SCENE_MAX_H){ sceneH = SCENE_MAX_H; sceneW = sceneH * aspect; }
+    sceneDX = -clamp(SCENE_FOCUS_X - sceneW/2, 0, Math.max(0, GEO.w - sceneW));
+    /* hold the ground line at 72% of the frame so the composition does not
+       drift as the viewport narrows. Never negative: at the aspect where the
+       window is exactly the design space, the whole space is shown. */
+    sceneDY = Math.max(0.72*sceneH - GEO.groundY, 0);
+  }
+
+  $('scene').setAttribute('viewBox', `0 0 ${sceneW.toFixed(2)} ${sceneH.toFixed(2)}`);
+  const t = `translate(${sceneDX.toFixed(2)} ${sceneDY.toFixed(2)})`;
+  $('world').setAttribute('transform', t);
+  $('backdrop').setAttribute('transform', t);
+  /* scene furniture that must stay legible at a constant screen size */
+  sceneScale = r.width / sceneW;
+  if (typeof Scene !== 'undefined' && Scene.rescale) Scene.rescale(1 / sceneScale, r.width);
+  Confetti.resize();
+}
+
+/* design space -> canvas pixel */
 function sceneToCanvas(x, y){
   const r = $('scene').getBoundingClientRect();
-  const s = Math.min(r.width / 760, r.height / 520);
-  return { x: (r.width - 760*s)/2 + x*s, y: (r.height - 520*s)/2 + y*s };
+  const vb = $('scene').viewBox.baseVal;
+  const s = Math.min(r.width / vb.width, r.height / vb.height);
+  return { x: (r.width  - vb.width *s)/2 + (x + sceneDX)*s,
+           y: (r.height - vb.height*s)/2 + (y + sceneDY)*s };
 }
 
 /* =====================================================================
@@ -675,39 +833,114 @@ const Scene = (() => {
   };
   const halo = { 'paint-order':'stroke', stroke:'#080c14', 'stroke-width':'3', 'stroke-linejoin':'round' };
 
+  /* ---------- screen-constant sizing ----------
+     The design space is no longer a fixed scale. A wide desktop window works
+     out at ~1.9 design units per pixel and a small phone at ~0.67 — a 2.8x
+     range — so anything drawn at a fixed size in design units renders as 20px
+     camp labels on the desktop and 7px on the phone. The targets below are in
+     SCREEN pixels; rescale() is handed 1/scale and folds it into the transform
+     of each piece of scene furniture, so the mountain grows but the labels and
+     the climber stay the size a person can actually read.
+
+     Scaling around the element's own anchor (translate · scale) means the
+     geometry, the label offset and the font size all shrink together and
+     nothing has to be redrawn.
+
+     These live at the top of the module because the marker geometry below is
+     built with them — declaring them beside rescale() at the bottom put
+     LABEL_DX in the temporal dead zone while the scene was being constructed. */
+  const UI_LABEL_MIN = 11.5;   /* camp label text height on screen, phone */
+  const UI_LABEL_MAX = 15;     /* and on a large desktop panel */
+  const UI_CLIMBER_PX = 40;    /* climber height, feet to top of head */
+  const CLIMBER_H = 44;        /* the same height, in design units */
+  const LABEL_UNITS = 10.5;    /* the label's design-unit font size */
+  const LABEL_DX = 17;         /* label offset right of the marker, design units */
+  let climberK = 1;
+
   /* ---------- defs ---------- */
   const defs = el('defs');
 
-  const gSky = el('linearGradient', {id:'g-sky', x1:'0', y1:'0', x2:'0', y2:'1'});
-  const skyStops = ['0%','34%','62%','82%','100%'].map(o => {
+  /* userSpaceOnUse, so the sky and ice gradients stay pinned to the massif
+     however tall the scene gets: a portrait viewport adds sky above and ice
+     below, it does not stretch the gradient over the extra room. */
+  const gSky = el('linearGradient', {id:'g-sky', gradientUnits:'userSpaceOnUse',
+                                     x1:'0', y1:'0', x2:'0', y2:'520'});
+  const skyStops = ['0%','32%','58%','80%','100%'].map(o => {
     const s = el('stop', {offset:o, 'stop-color':'#000'});
     gSky.appendChild(s); return s;
   });
   defs.appendChild(gSky);
 
-  const gRock = el('linearGradient', {id:'g-rock', x1:'0.15', y1:'0', x2:'0.85', y2:'1'});
-  const rockHi = el('stop', {offset:'0%',  'stop-color':'#8fa3bd'});
-  const rockMid= el('stop', {offset:'55%', 'stop-color':'#4a5b74'});
-  const rockLo = el('stop', {offset:'100%','stop-color':'#1a222c'});
-  gRock.append(rockHi, rockMid, rockLo);
-  defs.appendChild(gRock);
+  /* ice, for the glacier foreground. It starts almost black and only reaches
+     its mid tone well below the top edge, so the ice darkens into the rock it
+     spills from — otherwise the glacier's wavy top edge cuts a hard horizontal
+     seam right across the scene at the massif's base. */
+  const gIce = el('linearGradient', {id:'g-ice', gradientUnits:'userSpaceOnUse',
+                                     x1:'0', y1:'420', x2:'0', y2:'780'});
+  const iceTop  = el('stop', {offset:'0%',  'stop-color':'#0b131d'});
+  const iceTop2 = el('stop', {offset:'10%', 'stop-color':'#3d5268'});
+  const iceMid  = el('stop', {offset:'52%', 'stop-color':'#22303f'});
+  const iceBot  = el('stop', {offset:'100%','stop-color':'#0a0f16'});
+  gIce.append(iceTop, iceTop2, iceMid, iceBot);
+  defs.appendChild(gIce);
 
-  const gSnow = el('linearGradient', {id:'g-snow', x1:'0', y1:'0', x2:'0', y2:'1'});
-  const snowTop = el('stop', {offset:'0%',  'stop-color':'#fff'});
-  const snowBot = el('stop', {offset:'100%','stop-color':'#b9c8dd'});
-  gSnow.append(snowTop, snowBot);
-  defs.appendChild(gSnow);
-
+  /* aerial perspective on the distant ranges */
   const gHaze = el('linearGradient', {id:'g-haze', x1:'0', y1:'0', x2:'0', y2:'1'});
-  const hazeStop = el('stop', {offset:'0%', 'stop-color':'#000', 'stop-opacity':'0'});
-  const hazeStop2= el('stop', {offset:'100%','stop-color':'#000', 'stop-opacity':'.9'});
+  const hazeStop  = el('stop', {offset:'0%',  'stop-color':'#000', 'stop-opacity':'0'});
+  const hazeStop2 = el('stop', {offset:'100%','stop-color':'#000', 'stop-opacity':'.92'});
   gHaze.append(hazeStop, hazeStop2);
   defs.appendChild(gHaze);
 
-  const clip = el('clipPath', {id:'clip-climb'});
-  const clipRect = el('rect', {x:-20, y:470, width:800, height:60});
-  clip.appendChild(clipRect);
-  defs.appendChild(clip);
+  /* Depth — the massif darkens into its own base. Kept light, because the
+     folded faces now carry the shading themselves; a heavy overlay here just
+     washes the folds back out. */
+  const gDepth = el('linearGradient', {id:'g-depth', gradientUnits:'userSpaceOnUse',
+                                       x1:'0', y1:'150', x2:'0', y2:'470'});
+  gDepth.append(
+    el('stop', {offset:'0%',  'stop-color':'#000', 'stop-opacity':'0'}),
+    el('stop', {offset:'100%','stop-color':'#04070c', 'stop-opacity':'.20'})
+  );
+  defs.appendChild(gDepth);
+
+  /* The snowline — a sum of sines, so the boundary is irregular instead of a
+     ruler edge. Everything ABOVE the curve is snow. Set high enough that the
+     rock walls below it still read as rock rather than as a pale skirt. */
+  const SNOWLINE = [];
+  for (let x = -900; x <= 1600; x += 24){
+    SNOWLINE.push([x, 300 + Math.sin(x/58)*19 + Math.sin(x/23 + 1.7)*9 + Math.sin(x/11 + .5)*4]);
+  }
+  const mSnow = el('mask', {id:'m-snow', maskUnits:'userSpaceOnUse',
+                            x:-900, y:-1300, width:2500, height:2900});
+  mSnow.appendChild(el('path', {
+    d:'M -900 -1300 L 1600 -1300 L ' +
+      SNOWLINE.slice().reverse().map(p => `${p[0]} ${p[1].toFixed(1)}`).join(' L ') + ' Z',
+    fill:'#fff'
+  }));
+  defs.appendChild(mSnow);
+
+  /* the massif silhouette, used as a clip for everything drawn on it */
+  const clipMassif = el('clipPath', {id:'clip-massif'});
+  clipMassif.appendChild(el('path', {d:RIDGE_PATH}));
+  defs.appendChild(clipMassif);
+
+  /* The climbed portion is revealed through a MASK rather than a clip, so the
+     massif fades into the un-climbed ghost over the last stretch. A hard clip
+     cut the mountain off along a horizontal line, which reads as a paint-bucket
+     fill rather than as a climb in progress — and the mid-climb state is what
+     the app shows by default, so it was the first thing anyone saw.
+     The fade is ~30 design units; y1/y2 are moved with the frontier. */
+  const gClimb = el('linearGradient', {id:'g-climb', gradientUnits:'userSpaceOnUse',
+                                       x1:'0', y1:'470', x2:'0', y2:'500'});
+  const climbOpaque = el('stop', {offset:'0%',  'stop-color':'#fff', 'stop-opacity':'0'});
+  const climbClear  = el('stop', {offset:'100%','stop-color':'#fff', 'stop-opacity':'1'});
+  gClimb.append(climbOpaque, climbClear);
+  defs.appendChild(gClimb);
+
+  const mClimb = el('mask', {id:'m-climb', maskUnits:'userSpaceOnUse',
+                             x:-900, y:-1300, width:2500, height:2900});
+  mClimb.appendChild(el('rect', {x:-900, y:-1300, width:2500, height:2900,
+                                 fill:'url(#g-climb)'}));
+  defs.appendChild(mClimb);
 
   const glowF = el('filter', {id:'f-glow', x:'-70%', y:'-70%', width:'240%', height:'240%'});
   glowF.appendChild(el('feGaussianBlur', {stdDeviation:'5', result:'b'}));
@@ -731,144 +964,318 @@ const Scene = (() => {
 
   svg.appendChild(defs);
 
-  /* ---------- sky ---------- */
-  const skyRect = el('rect', {x:0, y:0, width:GEO.w, height:GEO.h, fill:'url(#g-sky)'});
-  svg.appendChild(skyRect);
+  /* =====================================================================
+     BACKDROP — sky, stars, sun/moon, distant ranges.
+     Drawn generously wide so it still covers the scene when the viewport is
+     wider than the massif's 760-unit design space.
+     ===================================================================== */
+  const backdrop = el('g', {id:'backdrop'});
+  svg.appendChild(backdrop);
+
+  /* The backdrop spans the widest and tallest scene we allow, so it still
+     covers the frame when the viewport is far from the design aspect. */
+  const BX0 = -900, BX1 = 1600;
+
+  const skyRect = el('rect', {x:BX0, y:-1100, width:BX1-BX0, height:2900, fill:'url(#g-sky)'});
+  backdrop.appendChild(skyRect);
 
   /* stars */
   const starG = el('g');
-  for (let i = 0; i < 190; i++){
-    const x = Math.random()*GEO.w, y = Math.random()*400;
+  for (let i = 0; i < 700; i++){
+    const x = BX0 + Math.random()*(BX1-BX0), y = -1000 + Math.random()*1460;
     starG.appendChild(el('circle', {
       cx:x.toFixed(1), cy:y.toFixed(1),
       r:(Math.random()*1.2+.3).toFixed(2), fill:'#dfeaf8',
-      opacity:(0.2+Math.random()*0.7).toFixed(2)
+      opacity:(0.18+Math.random()*0.72).toFixed(2)
     }));
   }
-  svg.appendChild(starG);
+  backdrop.appendChild(starG);
 
   /* celestial body */
   const bodyG = el('g');
-  const bodyGlow = el('circle', {r:64, filter:'url(#f-soft)'});
+  const bodyGlow = el('circle', {r:70, filter:'url(#f-soft)'});
   const body = el('circle', {r:19});
   bodyG.append(bodyGlow, body);
-  svg.appendChild(bodyG);
+  backdrop.appendChild(bodyG);
 
-  /* distant ranges */
+  /* distant ranges — three layers, each carrying more atmosphere than the last */
   const farG = el('g');
-  farG.appendChild(el('path', {
-    d:'M -20 430 L 70 300 L 140 356 L 232 250 L 320 352 L 410 282 L 500 358 L 600 272 L 690 344 L 790 430 Z',
-    fill:'#0d1521', opacity:'.55'
-  }));
-  const hazeBand = el('rect', {x:0, y:280, width:GEO.w, height:170, fill:'url(#g-haze)'});
+  const farLayers = [
+    { amp:1.65, base:378, fill:'#16202f', op:.55, seed:11 },
+    { amp:1.15, base:412, fill:'#111a26', op:.68, seed:29 },
+    { amp:0.75, base:444, fill:'#0b131c', op:.82, seed:47 }
+  ];
+  const farPaths = farLayers.map(L => {
+    const pts = [];
+    for (let x = BX0; x <= BX1; x += 60){
+      const n = Math.sin(x/213 + L.seed)*0.5 + Math.sin(x/97 + L.seed*2)*0.3 + Math.sin(x/41 + L.seed*3)*0.2;
+      pts.push([x, L.base - n*54*L.amp]);
+    }
+    const p = el('path', {
+      d:'M ' + pts.map(q => `${q[0]} ${q[1].toFixed(1)}`).join(' L ') + ` L ${BX1} 1400 L ${BX0} 1400 Z`,
+      fill:L.fill, opacity:L.op
+    });
+    farG.appendChild(p);
+    return p;
+  });
+  const hazeBand = el('rect', {x:BX0, y:262, width:BX1-BX0, height:200, fill:'url(#g-haze)'});
   farG.appendChild(hazeBand);
-  farG.appendChild(el('path', {
-    d:'M -20 442 L 60 372 L 150 414 L 240 344 L 330 412 L 420 368 L 520 420 L 610 374 L 700 418 L 790 442 Z',
-    fill:'#0a1119', opacity:'.75'
-  }));
-  svg.appendChild(farG);
+  backdrop.appendChild(farG);
+
+  /* =====================================================================
+     WORLD — everything positioned in the massif's 760-unit design space.
+     `fitScene()` translates this group so the massif stays centred as the
+     scene widens.
+     ===================================================================== */
+  const world = el('g', {id:'world'});
+  svg.appendChild(world);
 
   /* summit plume — the jet-stream snow flag off the top */
   const plume = el('path', {
-    d:`M 400 88 C 430 76, 470 74, 516 84 C 486 88, 452 94, 424 104 C 440 96, 424 92, 400 88 Z`,
+    d:`M 400 88 C 432 74, 474 72, 520 82 C 488 87, 452 94, 424 104 C 442 95, 424 92, 400 88 Z`,
     fill:'#ffffff', opacity:'.3', filter:'url(#f-soft)'
   });
-  svg.appendChild(plume);
+  world.appendChild(plume);
 
   /* ---------- full silhouette (the whole route, ahead of you) ---------- */
   const ghost = el('path', {
-    d:RIDGE_PATH, fill:'#0b121d', 'fill-opacity':'.62',
-    stroke:'#43536b', 'stroke-width':'1', 'stroke-dasharray':'5 6', 'stroke-opacity':'.6'
+    d:RIDGE_PATH, fill:'#0b121d', 'fill-opacity':'.6',
+    stroke:'#43536b', 'stroke-width':'1', 'stroke-dasharray':'5 6', 'stroke-opacity':'.55'
   });
-  svg.appendChild(ghost);
+  world.appendChild(ghost);
 
-  /* ---------- climbed portion (clipped at the frontier) ---------- */
-  const climbG = el('g', {'clip-path':'url(#clip-climb)'});
+  /* ---------- climbed portion (revealed through the frontier mask) ---------- */
+  const climbG = el('g', {mask:'url(#m-climb)'});
+  world.appendChild(climbG);
 
-  climbG.appendChild(el('path', {d:RIDGE_PATH, fill:'url(#g-rock)'}));
+  /* Everything drawn on the massif is clipped to its own silhouette, so the
+     folded faces below can be plain polygons without spilling into the sky. */
+  const massifG = el('g', {'clip-path':'url(#clip-massif)'});
+  climbG.appendChild(massifG);
 
-  /* snow above the snowline */
-  const snowPath = el('path', {
-    d:`M 256 194 L 290 226 L 304 254 L 318 282 L 332 304 L 342 302 L 352 282
-       L 362 252 L 370 216 L 378 176 L 386 136 L 393 104 L 400 88 L 406 106
-       L 412 132 L 418 156 L 426 172 L 436 176 L 446 172 L 458 174 L 470 166
-       L 482 150 L 496 130 L 508 116 L 516 112 L 528 126 L 542 148 L 558 176
-       L 576 208 L 598 240 L 622 272 L 640 292 L 620 300 L 560 268 L 500 240
-       L 460 226 L 430 216 L 410 214 L 380 220 L 350 238 L 320 268 L 296 258
-       L 272 226 Z`,
-    fill:'url(#g-snow)', opacity:'.92'
+  /* The massif as folded faces.
+     `az`    which way the face looks: -1 hard left, 0 at the viewer, +1 hard
+             right. The sun lights a face when its `az` matches the sun's side,
+             so the whole massif relights as the sun crosses the sky.
+     `up`    how much of the sky the face sees: 0 is a vertical wall, 1 is flat
+             ground. This is what stops noon collapsing — at noon the sun is
+             overhead, so faces separate by steepness rather than by left/right.
+     `occ`   ambient occlusion, for ground sitting in its own shadow. The
+             Western Cwm reads as a recess because it is darker, not because it
+             is a different colour.
+     `snow`  how much snow that face holds. A steep rock wall keeps most of its
+             rock; a glacier basin is entirely white.
+     `shade` the face's value in the DESIGNED light-and-shadow layout, as if the
+             sun sat high on the right: 0 deepest shadow, 1 fully lit. The sun's
+             position swings this layout across the day (see applySky), but at
+             noon the layout stands on its own — which is the whole point. A
+             lighting model with no designed base flattens the massif into a
+             cut-out at every hour the sun is not near the horizon. */
+  const FACES = [
+    { d:'M 0 448 L 40 432 L 78 408 L 112 382 L 60 470 L 0 470 Z',                                        az:-0.75, up:.45, occ:.30, snow:.42, shade:.38 },
+    { d:'M 112 382 L 142 352 L 168 318 L 190 282 L 206 250 L 220 222 L 238 202 L 256 194 L 300 470 L 60 470 Z', az:-0.88, up:.34, occ:.05, snow:.62, shade:.32 },
+    { d:'M 256 194 L 274 204 L 290 226 L 304 254 L 330 470 L 300 470 Z',                                 az: 0.90, up:.40, occ:.18, snow:.50, shade:.78 },
+    { d:'M 304 254 L 318 282 L 332 304 L 342 302 L 352 282 L 366 470 L 330 470 Z',                       az:-0.30, up:.22, occ:.34, snow:.80, shade:.40 },
+    { d:'M 352 282 L 362 252 L 370 216 L 378 176 L 386 136 L 393 104 L 400 88 L 424 470 L 366 470 Z',    az:-0.55, up:.16, occ:0,   snow:.74, shade:.50 },
+    { d:'M 400 88 L 406 106 L 412 132 L 418 156 L 426 172 L 436 176 L 452 470 L 424 470 Z',              az: 0.92, up:.20, occ:.10, snow:.62, shade:1.00 },
+    { d:'M 436 176 L 446 172 L 458 174 L 470 166 L 482 150 L 496 130 L 508 116 L 516 112 L 560 470 L 452 470 Z', az: 0.18, up:.48, occ:.06, snow:.95, shade:.70 },
+    { d:'M 516 112 L 528 126 L 542 148 L 558 176 L 576 208 L 598 240 L 622 272 L 650 304 L 682 336 L 716 366 L 760 396 L 760 470 L 560 470 Z', az: 0.86, up:.70, occ:.16, snow:.60, shade:.86 }
+  ];
+
+  /* the deepest tone the rock ever reaches, and the tone snow falls to when it
+     sits in shadow. Shared so the whole massif cools toward the same dark. */
+  const ROCK_DEEP = '#05090f';
+  const SNOW_DEEP = '#16223a';
+
+  /* shadow tone underneath, so any seam between faces stays dark */
+  const massifBase = el('path', {d:RIDGE_PATH, fill:'#1a222c'});
+  massifG.appendChild(massifBase);
+
+  const faceEls = FACES.map(f => {
+    const p = el('path', {d:f.d, fill:'#3a4757'});
+    massifG.appendChild(p);
+    return p;
   });
-  climbG.appendChild(snowPath);
+  /* each face's resolved shade for the current sky, written by applySky and
+     read by the snow layer so snow can be lit consistently with its rock */
+  const faceShade = FACES.map(() => .5);
 
-  /* rock bands — the Yellow Band and Geneva Spur */
-  const bands = el('g', {opacity:'.5'});
-  bands.appendChild(el('path', {
-    d:'M 300 268 L 380 232 L 430 222 L 470 232 L 420 244 L 350 274 Z', fill:'#8a7648'
-  }));
-  bands.appendChild(el('path', {
-    d:'M 372 208 L 400 190 L 424 206 L 400 218 Z', fill:'#7d6a42'
-  }));
-  bands.appendChild(el('path', {
-    d:'M 470 236 L 530 262 L 580 292 L 520 276 Z', fill:'#5c6a7d'
-  }));
-  climbG.appendChild(bands);
+  /* rock ribs — the fall-line striations every big rock face has. Drawn after
+     the faces and before the snow, so they read as rock texture on the bare
+     walls and are covered where snow lies. Without them a lit face is a flat
+     wash of one colour, which is what made the summit read as a paper cut-out. */
+  const ribs = el('g', {fill:'none', stroke:'#080d15', 'stroke-linecap':'round'});
+  for (let i = 0; i < 40; i++){
+    const x0 = -20 + i*22 + Math.random()*10;
+    const yTop = 150 + Math.random()*250;
+    const mid = (yTop + 470)/2;
+    const d = `M ${x0.toFixed(1)} ${yTop.toFixed(1)} ` +
+              `Q ${(x0 + 3 + Math.random()*7).toFixed(1)} ${mid.toFixed(1)} ` +
+              `${(x0 + 9 + Math.random()*16).toFixed(1)} 470`;
+    ribs.appendChild(el('path', {
+      d, 'stroke-width':(0.6 + Math.random()*1.0).toFixed(1),
+      opacity:(0.10 + Math.random()*0.17).toFixed(2)
+    }));
+  }
+  massifG.appendChild(ribs);
 
-  /* lit west face */
-  climbG.appendChild(el('path', {
-    d:'M 400 88 L 386 136 L 378 176 L 370 216 L 362 252 L 352 282 L 342 302 L 332 304 L 340 400 L 380 470 L 400 470 Z',
-    fill:'#ffffff', opacity:'.05'
-  }));
+  /* Snow, one layer per face. Each is the face shape filled white, masked to
+     above the snowline — so the boundary stays irregular while the amount of
+     snow still varies face by face. A single global snow layer buried every
+     fold under the same pale wash. */
+  const snowEls = FACES.map(f => {
+    const p = el('path', {d:f.d, fill:'#ffffff', mask:'url(#m-snow)', opacity:'0'});
+    massifG.appendChild(p);
+    return p;
+  });
 
-  /* frontier glow along the climb line */
-  const frontier = el('rect', {x:-20, y:470, width:800, height:9, fill:'#7fe3a8', opacity:'.5'});
-  climbG.appendChild(frontier);
+  /* rock that cuts back through the snow. The Yellow Band and the Geneva
+     Spur are why Everest reads as banded from the south — without them a
+     snow-capped cone is just a cone. */
+  const bands = el('g');
+  const yellowBand = el('path', {
+    d:'M 322 292 L 366 250 L 404 224 L 440 214 L 474 222 L 502 238 L 520 252 L 486 254 L 448 244 L 408 246 L 372 272 L 344 300 Z',
+    fill:'#8a7648', opacity:'.7'
+  });
+  const genevaSpur = el('path', {
+    d:'M 486 254 L 520 252 L 556 282 L 528 292 Z', fill:'#6f7f93', opacity:'.5'
+  });
+  bands.append(yellowBand, genevaSpur);
+  massifG.appendChild(bands);
 
-  svg.appendChild(climbG);
+  /* creases — the shared edge of each pair of faces, catching light */
+  const CREASES = [
+    'M 112 382 L 60 470',  'M 256 194 L 300 470', 'M 304 254 L 330 470',
+    'M 352 282 L 366 470', 'M 400 88 L 424 470',  'M 436 176 L 452 470',
+    'M 516 112 L 560 470'
+  ];
+  const creaseG = el('g', {fill:'none','stroke-linecap':'round'});
+  const creaseEls = CREASES.map(d => {
+    const p = el('path', {d, stroke:'#ffffff', 'stroke-width':'1.1', opacity:'.14'});
+    creaseG.appendChild(p);
+    return p;
+  });
+  massifG.appendChild(creaseG);
+
+  /* the massif darkens into its base */
+  massifG.appendChild(el('path', {d:RIDGE_PATH, fill:'url(#g-depth)'}));
+
+  /* rim light along the skyline, split either side of the summit so the sun
+     only picks out the ridge it is actually striking */
+  const rimL = el('path', {
+    d:'M ' + RIDGE.filter(p => p[0] <= 400).map(p => `${p[0]} ${p[1]}`).join(' L '),
+    fill:'none', stroke:'#ffffff', 'stroke-width':'1.7', 'stroke-linejoin':'round', opacity:'0'
+  });
+  const rimR = el('path', {
+    d:'M ' + RIDGE.filter(p => p[0] >= 400).map(p => `${p[0]} ${p[1]}`).join(' L '),
+    fill:'none', stroke:'#ffffff', 'stroke-width':'1.7', 'stroke-linejoin':'round', opacity:'0'
+  });
+  massifG.append(rimL, rimR);
+
+  /* frontier glow along the climb line. Clipped to the massif, because a
+     full-width rule laid across the sky at the summit reads as a stray UI
+     line rather than as part of the scene — on the mountain it reads as the
+     altitude the climb has reached.
+     It sits OUTSIDE the fade mask: it is the indicator, so it has to stay
+     crisp while the massif underneath it fades in.
+     The fill is a vertical gradient so it reads as a glow line rather than as
+     a solid green band painted across the mountain. */
+  const gFrontier = el('linearGradient', {id:'g-frontier', x1:'0', y1:'0', x2:'0', y2:'1'});
+  gFrontier.append(
+    el('stop', {offset:'0%',   'stop-color':'#7fe3a8', 'stop-opacity':'0'}),
+    el('stop', {offset:'50%',  'stop-color':'#b6f5cf', 'stop-opacity':'1'}),
+    el('stop', {offset:'100%', 'stop-color':'#7fe3a8', 'stop-opacity':'0'})
+  );
+  defs.appendChild(gFrontier);
+
+  const frontierG = el('g', {'clip-path':'url(#clip-massif)'});
+  const frontier = el('rect', {x:-20, y:470, width:800, height:15, fill:'url(#g-frontier)', opacity:'.62'});
+  frontierG.appendChild(frontier);
+  world.appendChild(frontierG);
 
   /* ---------- glacier foreground ---------- */
   const ice = el('g');
+  const GL_TOP = [];
+  for (let x = BX0; x <= BX1; x += 40){
+    GL_TOP.push([x, 434 + Math.sin(x/97)*9 + Math.sin(x/41 + 2.1)*5]);
+  }
   const glacier = el('path', {
-    d:`M 0 448 L 60 436 L 130 442 L 200 430 L 280 440 L 360 432 L 440 442
-       L 520 430 L 600 440 L 680 432 L 760 442 L 760 520 L 0 520 Z`,
-    fill:'#16202e'
+    d:'M ' + GL_TOP.map(p => `${p[0]} ${p[1].toFixed(1)}`).join(' L ') +
+      ` L ${BX1} 1400 L ${BX0} 1400 Z`,
+    fill:'url(#g-ice)'
   });
   ice.appendChild(glacier);
 
-  /* seracs — jagged ice blocks */
-  const seracs = el('g');
-  for (let i = 0; i < 46; i++){
-    const x = 20 + Math.random()*720;
-    const y = 444 + Math.random()*22;
-    const w = 7 + Math.random()*22;
-    const h = 5 + Math.random()*16;
-    seracs.appendChild(el('path', {
-      d:`M ${x} ${y} L ${x+w*0.5} ${y-h} L ${x+w} ${y} Z`,
-      fill:'#9fb4cd', opacity:(0.1 + Math.random()*0.3).toFixed(2)
+  /* ice terraces — contour bands across the icefall, which is what makes it
+     read as a glacier rather than a grey field */
+  const terraces = el('g', {fill:'none', stroke:'#8fa8c2'});
+  for (let i = 0; i < 30; i++){
+    const y = 448 + i*4.6 + Math.random()*3;
+    const pts = [];
+    for (let x = BX0; x <= BX1; x += 120){
+      pts.push(`${x} ${(y + Math.sin(x/150 + i)*4).toFixed(1)}`);
+    }
+    terraces.appendChild(el('path', {
+      d:'M ' + pts.join(' L '),
+      'stroke-width':(0.7 + Math.random()*0.9).toFixed(1),
+      opacity:(0.05 + Math.random()*0.1).toFixed(2)
     }));
+  }
+  ice.appendChild(terraces);
+
+  /* seracs — faceted blocks with a lit face and a shadow face.
+     The band is deliberately shallow. It used to run to y=680, but a landscape
+     frame only shows design y up to 520, so two thirds of the blocks were
+     drawn off-screen and the icefall read as an empty grey field. The bias
+     toward the top edge also matches where the eye actually goes. */
+  const seracs = el('g');
+  for (let i = 0; i < 420; i++){
+    const x = BX0 + Math.random()*(BX1-BX0);
+    const y = 442 + Math.pow(Math.random(), 1.5)*150;
+    const w = 8 + Math.random()*26;
+    const h = 5 + Math.random()*14;
+    const depth = (y - 442)/150;                     /* fades out with depth */
+    const g = el('g', {opacity:((0.2 + Math.random()*0.5)*(1 - depth*0.75)).toFixed(2)});
+    g.appendChild(el('path', {d:`M ${x} ${y} L ${x+w*0.45} ${y-h} L ${x+w} ${y} Z`, fill:'#d2e2f4'}));
+    g.appendChild(el('path', {d:`M ${x+w*0.45} ${y-h} L ${x+w} ${y} L ${x+w*0.62} ${y} Z`, fill:'#7d94ad'}));
+    seracs.appendChild(g);
   }
   ice.appendChild(seracs);
 
-  /* crevasses */
-  const crev = el('g', {stroke:'#060a11','stroke-width':'1.4', opacity:'.7', fill:'none'});
-  for (let i = 0; i < 13; i++){
-    const x = 30 + i*56 + Math.random()*20;
-    const y = 452 + Math.random()*12;
-    crev.appendChild(el('path', {d:`M ${x} ${y} q 14 ${6+Math.random()*8} 30 2`}));
+  /* crevasses — a dark wedge with the sunlit lip on the up-slope side */
+  const crev = el('g', {fill:'none'});
+  for (let i = 0; i < 150; i++){
+    const x = BX0 + Math.random()*(BX1-BX0);
+    const y = 450 + Math.pow(Math.random(), 1.3)*160;
+    const w = 26 + Math.random()*72;
+    const sag = 6 + Math.random()*9;
+    const fade = 1 - (y - 450)/160*0.8;
+    const d = `M ${x} ${y} Q ${(x+w*0.5).toFixed(1)} ${(y+sag).toFixed(1)} ${(x+w).toFixed(1)} ${(y-1).toFixed(1)}`;
+    crev.appendChild(el('path', {d, stroke:'#05080e', 'stroke-width':(1.2+Math.random()*1.8).toFixed(1),
+                                 opacity:((0.38+Math.random()*0.42)*fade).toFixed(2)}));
+    crev.appendChild(el('path', {d, stroke:'#b9d2ea', 'stroke-width':'0.9',
+                                 opacity:(0.2*fade).toFixed(2), transform:'translate(0 -2.2)'}));
   }
   ice.appendChild(crev);
-  svg.appendChild(ice);
+  world.appendChild(ice);
 
-  /* base camp tent village */
+  /* base camp tent village — lit face, shadow face, dark doorway */
   const village = el('g');
-  const tents = [[318,452],[330,456],[344,450],[356,455],[368,451],[300,456],[284,451],[394,455],[408,450],[420,456]];
-  tents.forEach(([x,y], i) => {
-    const s = 0.8 + (i % 3) * 0.18;
+  const TENTS = [[318,452],[330,457],[344,450],[356,456],[368,451],[300,457],[284,451],
+                 [394,456],[408,450],[420,457],[272,456],[432,452]];
+  TENTS.forEach(([x, y], i) => {
+    const s = 0.75 + (i % 3) * 0.2;
     const g = el('g', {transform:`translate(${x} ${y}) scale(${s})`});
-    g.appendChild(el('path', {d:'M 0 -9 L 8 2 L -8 2 Z', fill:'#e2c86a', opacity:'.92'}));
-    g.appendChild(el('path', {d:'M 0 -9 L 3 2 L -3 2 Z', fill:'#3a2f14', opacity:'.8'}));
+    g.appendChild(el('path', {d:'M 0 -10 L 8.5 2 L -8.5 2 Z', fill:'#d9c06a'}));
+    g.appendChild(el('path', {d:'M 0 -10 L 8.5 2 L 1.5 2 Z',  fill:'#8a7538'}));
+    g.appendChild(el('path', {d:'M 0 -10 L 2.8 2 L -2.8 2 Z', fill:'#2a2210'}));
     village.appendChild(g);
   });
-  svg.appendChild(village);
+  /* a lamp glow over camp, which only shows once the sun is down */
+  const campGlow = el('ellipse', {cx:352, cy:453, rx:118, ry:17, fill:'#ffb454',
+                                  filter:'url(#f-soft)', opacity:'0'});
+  village.appendChild(campGlow);
+  world.appendChild(village);
 
   /* ---------- route line ---------- */
   const routeD = 'M ' + CONFIG.camps.map(c => `${c.x} ${yForF(c.f).toFixed(1)}`).join(' L ');
@@ -876,7 +1283,7 @@ const Scene = (() => {
     d:routeD, fill:'none', stroke:'#f5a524', 'stroke-width':'1.6',
     'stroke-dasharray':'4 5', opacity:'.62', 'stroke-linecap':'round'
   });
-  svg.appendChild(route);
+  world.appendChild(route);
 
   /* ---------- camp markers ---------- */
   const campG = el('g');
@@ -890,7 +1297,7 @@ const Scene = (() => {
     const label = el('text', {
       'font-family':'ui-monospace,SFMono-Regular,Menlo,monospace',
       'font-size':'10.5','font-weight':'600','dominant-baseline':'central',
-      x:14, y:-8
+      x:LABEL_DX, y:-8
     });
     label.textContent = `${c.name} · ${c.alt.toLocaleString('en-US')} m`;
     Object.assign(label.style, halo);
@@ -898,7 +1305,7 @@ const Scene = (() => {
     campG.appendChild(g);
     markers[c.id] = { g, tent, label, pole };
   });
-  svg.appendChild(campG);
+  world.appendChild(campG);
 
   /* ---------- climber — Pepe the frog, the actual meme ---------- */
   const climber = el('g', {filter:'url(#f-glow)'});
@@ -929,11 +1336,11 @@ const Scene = (() => {
   const pNose = el('path', {fill:'none', stroke:'#20400f', 'stroke-width':'0.8', 'stroke-linecap':'round'});
   climber.append(pRope, pLegs, pShirt, pArms, pHead, pLip, pMouth,
                  pEyeL, pEyeR, pPupL, pPupR, pHiL, pHiR, pLidL, pLidR, pNose, pPick);
-  svg.appendChild(climber);
+  world.appendChild(climber);
 
   /* ---------- ripples ---------- */
   const ripples = el('g');
-  svg.appendChild(ripples);
+  world.appendChild(ripples);
   function ripple(x, y){
     const c = el('circle', {
       cx:x, cy:y, r:5, fill:'none', stroke:'#22c55e',
@@ -955,6 +1362,7 @@ const Scene = (() => {
   function applySky(t){
     const s = skyAt(t);
     curSky = s;
+
     skyStops[0].setAttribute('stop-color', s.sky[0]);
     skyStops[1].setAttribute('stop-color', mixHex(s.sky[0], s.sky[1], .5));
     skyStops[2].setAttribute('stop-color', s.sky[1]);
@@ -963,29 +1371,108 @@ const Scene = (() => {
 
     starG.setAttribute('opacity', s.stars.toFixed(3));
 
-    rockHi.setAttribute('stop-color', s.rock[0]);
-    rockMid.setAttribute('stop-color', mixHex(s.rock[0], s.rock[1], .55));
-    rockLo.setAttribute('stop-color', s.rock[1]);
-    snowTop.setAttribute('stop-color', s.snow);
-    snowBot.setAttribute('stop-color', mixHex(s.snow, s.rock[1], .45));
-
     hazeStop.setAttribute('stop-color', s.haze);
     hazeStop2.setAttribute('stop-color', s.haze);
-    glacier.setAttribute('fill', mixHex(s.rock[1], '#1a2636', .5));
+    farPaths.forEach((p, i) => {
+      /* farther ranges carry more atmosphere */
+      p.setAttribute('fill', mixHex(mixHex(s.rock[1], '#0a0f18', .35), s.haze, [.72,.62,.5][i]));
+    });
 
-    /* sun / moon arc: rises left, sets right */
+    /* ---- sun / moon arc: rises left, sets right ---- */
     const isDay = t > 0.24 && t < 0.79;
     const u = isDay ? (t - 0.24)/0.55 : (((t + 0.21) % 1) / 0.45);
     const ang = u * Math.PI;
+    const sunUp = Math.sin(ang);          /* 0 on the horizon, 1 at zenith */
+    const sunU  = u*2 - 1;                /* -1 far left (sunrise), +1 far right (sunset) */
+
     const bx = 60 + u * 640;
-    const by = 400 - Math.sin(ang) * 330;
+    const by = 400 - sunUp * 330;
     bodyG.setAttribute('transform', `translate(${bx.toFixed(1)} ${by.toFixed(1)})`);
     body.setAttribute('fill', isDay ? s.sun : '#dbe6f5');
     body.setAttribute('r', isDay ? 19 : 14);
     bodyGlow.setAttribute('fill', s.glow);
     bodyGlow.setAttribute('opacity', isDay ? '.75' : '.4');
-    bodyG.setAttribute('opacity', (by > 470 ? 0 : 1).toFixed(2));
-    bodyG.dataset.day = isDay ? '1' : '0';
+    /* fades as it drops to the ridge instead of popping out of existence */
+    bodyG.setAttribute('opacity', clamp(.25 + sunUp*.75, 0, 1).toFixed(3));
+
+    /* ---- the massif, lit face by face ----
+       Two things have to be true at once, and a pure Lambert term only manages
+       the first: the mountain must RELIGHT as the sun crosses the sky, and it
+       must still read as a solid at every hour. Lambert fails the second —
+       at noon every face points at the sky, so every face resolves to the same
+       value and the massif flattens into a cut-out (measured: a 35/255 spread
+       at noon, 9/255 at midnight, which is invisible).
+
+       So each face carries a designed `shade` — its value in a light-and-shadow
+       layout drawn as if the sun sat high on the right — and the sun's position
+       swings that layout across the day. At noon the designed structure stands
+       alone; at dawn and dusk the whole massif turns over and relights. `up`
+       adds the elevation cue, so a low sun dims the flat ground and a high sun
+       brightens it. At night the moon takes over, from the opposite side and at
+       half the swing, so the massif stays a solid instead of a black hole. */
+    const swing = isDay ? sunU : -sunU * .55;
+    const elev  = isDay ? (sunUp - .5) : (sunUp - .5) * .6;
+    /* lit rock is graded toward the sun's own colour, so faces catch the light
+       instead of merely getting brighter. Strongest when the sun is low. */
+    const litTone = isDay
+      ? mixHex(s.rock[0], s.sun, clamp(.34 - .22*sunUp, 0, .34))
+      : mixHex(s.rock[0], '#b9c9e6', .16);
+    FACES.forEach((f, i) => {
+      const sh = clamp(f.shade + swing * f.az * .42 + elev * f.up * .5, 0, 1);
+      faceShade[i] = sh;
+      /* The ramp runs from the rock's own shadow colour to its lit colour. It
+         deliberately does NOT run from black: a shadowed face at noon is rock
+         in shade, not a hole, and anchoring the dark end at black made the
+         whole left half of the massif read as a void. `occ` is what reaches
+         for the deep tone, and only where ground genuinely occludes itself. */
+      let col = mixHex(s.rock[1], litTone, sh);
+      if (f.occ) col = mixHex(col, ROCK_DEEP, f.occ * .5);
+      if (!isDay) col = mixHex(col, '#0a1424', .30);   /* moonlit rock is cold */
+      faceEls[i].setAttribute('fill', col);
+    });
+
+    /* snow: lit by its own face's shade, so snow in shadow goes blue and snow
+       in sun goes white. One flat white layer over every face is exactly what
+       made the massif read as a pale blob.
+
+       `snow` is how much of the face holds snow, and it is applied through a
+       curve rather than straight into the alpha. Used directly as opacity, a
+       face that is 62% snow rendered as 62% white over blue-grey rock — which
+       is how a snow-capped summit ended up the colour of slate. The curve
+       pushes snowy faces toward opaque and lets only the bare ones show rock. */
+    const snowBright = isDay ? clamp(.62 + .38*sunUp, .4, 1) : .62;
+    snowEls.forEach((p, i) => {
+      const sh = faceShade[i];
+      const base = mixHex(SNOW_DEEP, s.snow, isDay ? clamp(.34 + .70*sh, 0, 1) : .26 + .34*sh);
+      const warm = isDay ? clamp(.30 - .24*sunUp, 0, .30) * sh : 0;
+      p.setAttribute('fill', mixHex(base, s.sun, warm));
+      p.setAttribute('opacity', (Math.pow(FACES[i].snow, .45) * snowBright).toFixed(3));
+    });
+
+    /* the rock bands sit above the snowline, so they need the same treatment */
+    yellowBand.setAttribute('fill', mixHex('#4a3f2a', '#b89a5e', isDay ? clamp(.4 + .6*sunUp, 0, 1) : .25));
+    yellowBand.setAttribute('opacity', isDay ? '.82' : '.4');
+    genevaSpur.setAttribute('fill', mixHex(s.rock[1], '#8494a8', isDay ? .7 : .3));
+
+    creaseG.setAttribute('opacity', (isDay ? .30 + .26*sunUp : .22).toFixed(3));
+
+    /* the ridge the sun is actually hitting catches the rim light */
+    const rimBase = isDay ? .12 + .22*sunUp : .20;
+    rimL.setAttribute('opacity', (rimBase + clamp(-sunU, 0, 1)*.42).toFixed(3));
+    rimR.setAttribute('opacity', (rimBase + clamp( sunU, 0, 1)*.42).toFixed(3));
+    const rimCol = mixHex(s.snow, s.sun, isDay ? clamp(.30 + .25*(1 - sunUp), 0, .55) : .10);
+    rimL.setAttribute('stroke', rimCol);
+    rimR.setAttribute('stroke', rimCol);
+
+    /* glacier ice */
+    iceTop.setAttribute('stop-color', mixHex(s.rock[1], '#04070c', .55));
+    iceTop2.setAttribute('stop-color', mixHex(s.rock[1], '#8299b2', .62));
+    iceMid.setAttribute('stop-color', mixHex(s.rock[1], '#2c3a4c', .45));
+    iceBot.setAttribute('stop-color', mixHex(s.rock[1], '#080d14', .72));
+
+    /* the camp lamps only show once the sun is down */
+    campGlow.setAttribute('opacity', (s.stars * .6).toFixed(3));
+
     return s;
   }
   function currentSkyName(){ return curSky ? curSky.name : ''; }
@@ -996,9 +1483,11 @@ const Scene = (() => {
     const climbY = yForF(f);
     const climberX = routeX(f);
 
-    clipRect.setAttribute('y', climbY.toFixed(1));
-    clipRect.setAttribute('height', Math.max(1, GEO.h - climbY + 20).toFixed(1));
-    frontier.setAttribute('y', (climbY - 4).toFixed(1));
+    /* the reveal fades in across the frontier: clear above it, opaque below */
+    gClimb.setAttribute('y1', (climbY - 30).toFixed(1));
+    gClimb.setAttribute('y2', (climbY + 2).toFixed(1));
+    /* centre the 15-unit glow band on the frontier line */
+    frontier.setAttribute('y', (climbY - 7.5).toFixed(1));
 
     /* plume shows as you near the summit */
     plume.setAttribute('opacity', clamp((f - 0.72) / 0.28, 0, 1) * 0.55);
@@ -1101,9 +1590,34 @@ const Scene = (() => {
     /* safety rope trailing down the route behind him */
     pRope.setAttribute('d',
       `M ${p([x-5+slope*0.3, y-0.8])} Q ${p([x-13, y-3])} ${p([x-16, y+7])}`);
+
+    /* his geometry is drawn in absolute design coordinates, so the
+       screen-constant scale is applied around his own feet — that keeps the
+       drawing code untouched while the figure stops shrinking on a phone */
+    climber.setAttribute('transform', around(x, y, climberK));
   }
 
-  return { update, applySky, currentSkyName, ripple, climbYFor: f => yForF(f) };
+  /* scale about an arbitrary design-space point. Needed for the climber, whose
+     geometry is drawn in absolute design coordinates. */
+  function around(cx, cy, k){
+    return `translate(${cx} ${cy}) scale(${k.toFixed(4)}) translate(${(-cx).toFixed(1)} ${(-cy).toFixed(1)})`;
+  }
+
+  function rescale(k, panelW){
+    /* labels grow a little with the panel, but only a little: they must stay
+       legible on a 360px phone without shouting on a 1584px desktop */
+    const labelPx = clamp(panelW / 95, UI_LABEL_MIN, UI_LABEL_MAX);
+    const mk = (labelPx / LABEL_UNITS) * k;
+    CONFIG.camps.forEach(c => {
+      /* a marker's children are already laid out around its own origin, so the
+         anchor goes in the translate and the scale needs no second translate */
+      markers[c.id].g.setAttribute('transform',
+        `translate(${c.x} ${yForF(c.f).toFixed(1)}) scale(${mk.toFixed(4)})`);
+    });
+    climberK = (UI_CLIMBER_PX / CLIMBER_H) * k;
+  }
+
+  return { update, applySky, currentSkyName, ripple, rescale, climbYFor: f => yForF(f) };
 })();
 
 /* =====================================================================
@@ -1232,7 +1746,7 @@ function startSim(){
   const tick = () => {
     const vol = 0.008 + Math.random()*0.022;
     const dir = Math.random() < 0.56 ? 1 : -1;
-    mc = Math.max(2000, mc * (1 + vol*dir*state.speed));
+    mc = Math.max(2000, mc * (1 + vol*dir));
     let dbuys = 0, dsells = 0;
     if (Math.random() < 0.72) dbuys  = 1 + ((Math.random()*3)|0);
     if (Math.random() < 0.42) dsells = 1 + ((Math.random()*2)|0);
@@ -1244,11 +1758,23 @@ function startSim(){
     apply({ marketCapUsd:mc, priceUsd: mc/CONFIG.token.supply, buys, sells, holders,
             buySol, sellSol });
   };
-  const id = setInterval(tick, Math.max(280, 1100/state.speed));
+  /* `speed` is the climb rate, so it is applied exactly once — to the tick
+     rate only. Scaling the per-tick volatility as well made the walk
+     quadratic, so 4× read as 16×. 1100/4 = 275 ms sits above the floor, which
+     keeps the multiplier honest across the whole slider range. */
+  const id = setInterval(tick, Math.max(120, 1100/state.speed));
   feedHandle = { stop: () => clearInterval(id) };
 }
 
-function startManual(){ setFeedState('off', 'manual control'); feedHandle = { stop(){} }; }
+function startManual(){
+  /* bring the slider in line with wherever the climb actually is, so the
+     control never disagrees with the mountain it drives */
+  const s = $('in-manual');
+  s.value = String(clamp(Math.round(state.mc), +s.min, +s.max));
+  $('manual-val').textContent = fmtMoney(+s.value);
+  setFeedState('off', 'manual control');
+  feedHandle = { stop(){} };
+}
 
 function startLive(){
   const url = state.endpoint.trim();
@@ -1284,15 +1810,22 @@ function startLive(){
   feedHandle = { stop: () => { alive = false; } };
 }
 
+/* A feed value is only usable when it is a real, finite number. JSON cannot
+   carry NaN, but it can carry 1e400 — which parses to Infinity — and a
+   malformed frame must never poison the readouts. */
+const fin = v => (typeof v === 'number' && Number.isFinite(v)) ? v : null;
+
 function apply(d){
   const prevMc = state.mc;
-  if (typeof d.marketCapUsd === 'number') state.mc = d.marketCapUsd;
-  else if (typeof d.mc === 'number') state.mc = d.mc;
+  const mcIn = fin(d.marketCapUsd) ?? fin(d.mc);
+  if (mcIn !== null) state.mc = Math.max(0, mcIn);
 
-  state.price = typeof d.priceUsd === 'number' ? d.priceUsd : state.mc / CONFIG.token.supply;
+  const priceIn = fin(d.priceUsd);
+  state.price = priceIn !== null ? Math.max(0, priceIn) : state.mc / CONFIG.token.supply;
 
-  if (typeof d.buys === 'number'){
-    const delta = d.buys - lastBuys;
+  const buysIn = fin(d.buys), buySolIn = fin(d.buySol);
+  if (buysIn !== null){
+    const delta = buysIn - lastBuys;
     if (delta > 0 && delta < 400){
       const base = sceneToCanvas(routeX(mcToF(state.mc)), GEO.groundY - 12);
       for (let i = 0; i < Math.min(delta, 6); i++){
@@ -1301,28 +1834,37 @@ function apply(d){
                       Math.random() < .3 ? '#f5a524' : '#4ade80');
       }
       /* SOL size for this burst: from the feed if it sends it, else estimated */
-      const dBuySol = typeof d.buySol === 'number' && lastBuys > 0
-        ? Math.max(0, d.buySol - lastBuySol)
+      const dBuySol = buySolIn !== null && lastBuys > 0
+        ? Math.max(0, buySolIn - lastBuySol)
         : delta * (0.05 + Math.random()*0.6) + (Math.random() < 0.06 ? 1.5 + Math.random()*4 : 0);
       Tape.push('buy', `${delta} buy${delta>1?'s':''} · ${fmtSol(dBuySol)} · cap ${fmtMoney(state.mc)}`);
-      lastBuySol = d.buySol ?? (lastBuySol + dBuySol);
+      lastBuySol = buySolIn !== null ? buySolIn : lastBuySol + dBuySol;
     }
-    lastBuys = d.buys; state.buys = d.buys;
+    lastBuys = buysIn; state.buys = buysIn;
   }
-  if (typeof d.sells === 'number'){
-    const delta = d.sells - lastSells;
+  /* When the feed omits SOL volumes, the running estimate is what the top bar
+     reports — INTEGRATION.md §2 promises exactly that. The feed's own figure
+     wins whenever it sends one. */
+  if (buySolIn !== null) lastBuySol = buySolIn;
+  state.buySol = lastBuySol;
+
+  const sellsIn = fin(d.sells), sellSolIn = fin(d.sellSol);
+  if (sellsIn !== null){
+    const delta = sellsIn - lastSells;
     if (delta > 0 && delta < 400){
-      const dSellSol = typeof d.sellSol === 'number' && lastSells > 0
-        ? Math.max(0, d.sellSol - lastSellSol)
+      const dSellSol = sellSolIn !== null && lastSells > 0
+        ? Math.max(0, sellSolIn - lastSellSol)
         : delta * (0.05 + Math.random()*0.5);
       Tape.push('sell', `${delta} sell${delta>1?'s':''} · ${fmtSol(dSellSol)} · cap ${fmtMoney(state.mc)}`);
-      lastSellSol = d.sellSol ?? (lastSellSol + dSellSol);
+      lastSellSol = sellSolIn !== null ? sellSolIn : lastSellSol + dSellSol;
     }
-    lastSells = d.sells; state.sells = d.sells;
+    lastSells = sellsIn; state.sells = sellsIn;
   }
-  if (typeof d.buySol === 'number') state.buySol = d.buySol;
-  if (typeof d.sellSol === 'number') state.sellSol = d.sellSol;
-  if (typeof d.holders === 'number') state.holders = d.holders;
+  if (sellSolIn !== null) lastSellSol = sellSolIn;
+  state.sellSol = lastSellSol;
+
+  const holdersIn = fin(d.holders);
+  if (holdersIn !== null) state.holders = Math.max(0, holdersIn);
 
   checkCamps(prevMc, state.mc);
 }
@@ -1444,6 +1986,41 @@ $('btn-reset').addEventListener('click', () => {
   else if (state.feedMode === 'manual') startManual();
   else startLive();
 });
+
+/* =====================================================================
+   Framing and the route panel
+   ===================================================================== */
+$('btn-route').addEventListener('click', () => {
+  document.querySelector('.ladder').classList.toggle('open');
+});
+$('ladder-x').addEventListener('click', () => {
+  document.querySelector('.ladder').classList.remove('open');
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  $('drawer').classList.remove('open');
+  document.querySelector('.ladder').classList.remove('open');
+});
+
+/* The scene is sized from its own box, so it tracks the ladder becoming a
+   column or an overlay as well as plain window resizes. */
+let lastW = window.innerWidth;
+function onResize(){
+  /* The route ladder is a static column above 1180px and a slide-over below
+     it, so `.open` means nothing in the column layout. Opening it on a wide
+     screen and then shrinking used to leave the overlay covering the whole
+     scene: a phone user would land on the route list instead of the mountain.
+     Any width change closes it, which is predictable and never hides the
+     scene. */
+  if (window.innerWidth !== lastW){
+    lastW = window.innerWidth;
+    document.querySelector('.ladder').classList.remove('open');
+  }
+  fitScene();
+}
+fitScene();
+window.addEventListener('resize', onResize);
+if (window.ResizeObserver) new ResizeObserver(fitScene).observe($('scenewrap'));
 
 $('cfg-list').innerHTML = CONFIG.camps
   .map(c => `${c.name} — ${c.alt.toLocaleString('en-US')} m — $${fmtShort(c.mc)}`)
