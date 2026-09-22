@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="PEAK">
+  <title>PEAK app icon — full bleed</title>
+  <!-- No corner radius and no transparency. iOS, Android and the various app
+       stores apply their own mask, and they want the artwork to run to the
+       edges; a pre-rounded icon gets rounded twice and shows a hairline of
+       background inside their mask. -->
+  <defs>
+    <linearGradient id="peak-bg-sq" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#17222f"/>
+      <stop offset="100%" stop-color="#080c13"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#peak-bg-sq)"/>
+  <g transform="translate(256 272) scale(0.72) translate(-256 -256)">
+    <path d="M16 400 L176 112 L264 264 L304 208 L496 400 Z" fill="#4b5c75"/>
+    <path d="M176 112 L217.6 184 L176 212.8 L134.4 184 Z" fill="#e8eef7"/>
+    <path d="M304 208 L332.8 256 L304 275.2 L275.2 256 Z" fill="#c3d0e2"/>
+    <path d="M176 112 L320 216" fill="none" stroke="#22c55e" stroke-width="20"
+          stroke-dasharray="32 32" stroke-linecap="round"/>
+  </g>
+</svg>

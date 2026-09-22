@@ -39,7 +39,12 @@
   .app{
     height:100vh;height:100dvh;display:grid;
     grid-template-columns:minmax(0,1fr);
-    grid-template-rows:auto minmax(0,1fr) auto;
+    /* four rows: the CA band, the top bar, the stage, the tape. The band is its
+       own row rather than a child of the top bar because the CA is the one thing
+       on this page a visitor is here to copy, and the top bar already wraps into
+       two rows on a phone — burying it in there made it the first thing to be
+       pushed off. */
+    grid-template-rows:auto auto minmax(0,1fr) auto;
   }
 
   /* ============ TOP BAR ============ */
@@ -94,6 +99,59 @@
     color:var(--ink-2);cursor:pointer;padding:2px 7px;font-size:14px;line-height:1;
   }
   .ladder-x:hover{color:var(--ink);border-color:#3a4a63;}
+
+  /* ============ CA BAND ============ */
+  /* The contract address and the two brand links, as the first row of the app.
+     Left-aligned by construction — it is the first element in the first row. */
+  .caband{
+    display:flex;align-items:center;gap:11px;row-gap:6px;flex-wrap:wrap;
+    padding:7px 18px;background:#0b1017;
+    border-bottom:1px solid var(--line);position:relative;z-index:31;
+    min-width:0;
+  }
+  .caband .soc{display:flex;gap:7px;flex:0 0 auto;}
+  /* Both marks sit on a white plate. pump.fun's logomark is drawn for a light
+     background — its dark-green paths disappear on this one — and X's mark is
+     black in its official light lockup. Matching plates keep the pair reading as
+     a set instead of one bright tile beside one dark one. */
+  .caband .ico{
+    width:28px;height:28px;display:grid;place-items:center;
+    border-radius:8px;background:#fff;flex:0 0 auto;
+    transition:transform .15s,box-shadow .15s,opacity .15s;
+  }
+  .caband .ico svg{display:block;}
+  .caband .ico.pump svg{width:17px;height:17px;}
+  .caband .ico.x svg{width:14px;height:14px;}
+  .caband .ico:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.55);}
+  /* no URL published yet — drawn, but not a link */
+  .caband .ico.off{opacity:.3;pointer-events:none;}
+  .caband .caval{
+    display:flex;align-items:center;gap:9px;min-width:0;flex:1 1 auto;
+    background:transparent;border:none;padding:3px 0;cursor:pointer;
+    font:inherit;text-align:left;color:inherit;
+  }
+  .caband .caval .k{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.13em;
+    color:var(--ink-3);flex:0 0 auto;
+  }
+  .caband .caval .v{
+    font-family:var(--mono);font-size:12.5px;color:var(--ink);
+    overflow-wrap:anywhere;min-width:0;transition:color .15s;
+  }
+  .caband .caval .v.pending{
+    color:var(--amber);font-weight:600;letter-spacing:.07em;
+  }
+  .caband.has-ca .caval:hover .v{color:var(--green);}
+  .caband .cval-copy{
+    font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.09em;
+    color:var(--ink-3);border:1px solid var(--line-2);border-radius:5px;
+    padding:2px 6px;flex:0 0 auto;transition:.15s;
+  }
+  .caband:not(.has-ca) .cval-copy{display:none;}
+  .caband.has-ca .caval:hover .cval-copy{color:var(--green);border-color:#1c6b3f;}
+  .caband .cval-copy.done{
+    color:var(--green);border-color:#1c6b3f;background:var(--green-dim);
+  }
 
   /* ============ STAGE ============ */
   .stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 336px;min-height:0;}
@@ -332,6 +390,12 @@
     #banner .bt{font-size:16px;}
     #banner .bs{font-size:11.5px;}
     .ladder{top:8px;right:8px;bottom:8px;width:calc(100% - 16px);}
+    /* the address is 44 characters and must stay fully visible rather than
+       truncating — it is the one string on this page people copy by hand. It
+       wraps onto a second line instead, which costs one row and no correctness. */
+    .caband{padding:6px 12px;gap:9px;}
+    .caband .ico{width:26px;height:26px;border-radius:7px;}
+    .caband .caval .v{font-size:11.5px;}
   }
   @media (prefers-reduced-motion:reduce){
     .rung.next .tent{animation:none;}
@@ -342,6 +406,37 @@
 <body>
 <div class="app">
 
+  <!-- The CA band. First row, left-aligned: the contract address is the thing a
+       visitor came here to copy, so it gets its own row rather than being the
+       first casualty of the top bar wrapping on a phone.
+       Both marks are the official artwork, not redrawings — pump.fun's logomark
+       is the file served by pump.fun, and the X glyph is the brand mark. -->
+  <div class="caband" id="caband">
+    <div class="soc">
+      <a class="ico pump off" id="ico-pump" target="_blank" rel="noopener noreferrer"
+         aria-label="pump.fun" title="pump.fun">
+        <svg viewBox="0 0 200 200" fill="none" aria-hidden="true">
+          <path d="M21.8855 184.247C-2.01603 162.076 -3.41853 124.726 18.753 100.824L94.7609 18.8855C116.932 -5.01605 154.282 -6.41855 178.184 15.7529C202.085 37.9244 203.488 75.274 181.316 99.1756L105.308 181.115C83.1367 205.016 45.7871 206.419 21.8855 184.247Z" fill="white"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M18.753 100.824C-3.41853 124.726 -2.01603 162.076 21.8855 184.247C45.7871 206.419 83.1367 205.016 105.308 181.115L145.81 137.452L59.2549 57.1621L18.753 100.824ZM40.6908 123.847C41.4209 122.946 41.2828 121.625 40.3824 120.895C39.482 120.165 38.1603 120.303 37.4302 121.203L34.9463 124.267C34.2162 125.167 34.3543 126.489 35.2547 127.219C36.1551 127.949 37.4768 127.811 38.2068 126.91L40.6908 123.847ZM34.5525 135.781C34.7653 134.641 34.014 133.545 32.8745 133.332C31.735 133.12 30.6388 133.871 30.4261 135.01C29.2814 141.142 29.7013 147.239 31.4916 152.718C31.8516 153.82 33.0367 154.421 34.1385 154.061C35.2404 153.701 35.8417 152.516 35.4816 151.414C33.9159 146.623 33.5335 141.24 34.5525 135.781ZM39.6257 160.27C38.8184 159.438 37.4897 159.418 36.6578 160.225C35.8259 161.032 35.8059 162.361 36.6131 163.193L40.0892 166.775C40.8964 167.607 42.2252 167.627 43.0571 166.82C43.889 166.013 43.909 164.684 43.1018 163.852L39.6257 160.27Z" fill="#5FCB88"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M3.06623 138.152C5.76813 147.035 10.7861 155.343 18.084 162.112C40.0735 182.51 74.4351 181.22 94.8329 159.23L161.563 87.2934C181.961 65.304 180.67 30.9424 158.681 10.5446C153.808 6.02469 148.328 2.56968 142.527 0.168847C155.378 1.14043 168.001 6.30744 178.184 15.7529C202.085 37.9244 203.488 75.274 181.316 99.1756L105.308 181.115C83.1367 205.016 45.7871 206.419 21.8855 184.247C8.6076 171.93 2.27306 154.929 3.06623 138.152Z" fill="#629393" fill-opacity="0.4"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M140.341 130.232L174.776 93.1092C193.598 72.8194 192.407 41.1138 172.117 22.2927C151.827 3.47151 120.122 4.66206 101.301 24.9518L66.8651 62.0744L140.341 130.232ZM181.316 99.1756C203.488 75.274 202.085 37.9244 178.184 15.7529C154.282 -6.41855 116.932 -5.01605 94.7609 18.8855L54.259 62.5478L140.814 142.838L181.316 99.1756Z" fill="#1D3934"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M25.2927 106.891L60.7988 68.6141L54.259 62.5478L18.753 100.824C-3.41853 124.726 -2.01603 162.076 21.8855 184.247C45.7871 206.419 83.1367 205.016 105.308 181.115L140.814 142.838L134.275 136.771L98.7685 175.048C79.9473 195.338 48.2417 196.528 27.9519 177.707C7.66214 158.886 6.47158 127.181 25.2927 106.891Z" fill="#1D3934"/>
+        </svg>
+      </a>
+      <a class="ico x off" id="ico-x" target="_blank" rel="noopener noreferrer"
+         aria-label="X" title="X">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#0f1419"/>
+        </svg>
+      </a>
+    </div>
+    <button class="caval" id="ca-copy" type="button">
+      <span class="k">CA</span>
+      <span class="v pending" id="ca-text">TO BE LAUNCHED</span>
+      <span class="cval-copy" id="ca-chip">COPY</span>
+    </button>
+  </div>
+
   <header class="topbar">
     <div class="brand">
       <svg class="glyph" viewBox="0 0 32 32" fill="none">
@@ -350,7 +445,7 @@
         <path d="M19 14l1.8 3-1.8 1.2-1.8-1.2z" fill="#c3d0e2"/>
         <path d="M11 8l9 6.5" stroke="#22c55e" stroke-width="1.4" stroke-dasharray="2 2"/>
       </svg>
-      <span class="name">PEAK</span>
+      <span class="name" id="brand-name">PEAK</span>
       <span class="tick" id="tick">$PEAK</span>
     </div>
 
@@ -449,7 +544,7 @@
         <button class="ladder-x" id="ladder-x" aria-label="Close route panel">✕</button>
       </div>
       <div class="rungs" id="rungs"></div>
-      <div class="ladder-ft">
+      <div class="ladder-ft" id="ladder-note">
         Camps mark market-cap milestones only. Nothing on this screen is a
         promise of return, a yield, or an entitlement.
       </div>
@@ -2016,7 +2111,15 @@ function onResize(){
     lastW = window.innerWidth;
     document.querySelector('.ladder').classList.remove('open');
   }
-  fitScene();
+  /* Measure on the NEXT frame, not now.
+     The resize event fires while the grid still holds the previous geometry, so
+     reading the panel here sized the viewBox for a panel that no longer existed
+     — after a 1440x900 -> 1920x1080 change it produced 760x520.4 for a panel
+     that was already 1584x936, and the mountain stayed mis-framed until the
+     ResizeObserver's own callback landed a few hundred ms later. Deferring by
+     one frame means getBoundingClientRect flushes layout first and returns the
+     real box, so the first fit is the correct one. */
+  requestAnimationFrame(fitScene);
 }
 fitScene();
 window.addEventListener('resize', onResize);
@@ -2027,6 +2130,187 @@ $('cfg-list').innerHTML = CONFIG.camps
   .join('<br>');
 
 /* =====================================================================
+   Published settings
+
+   The CA, the labels and the banner copy are read from /api/settings, which
+   serves the peak_settings row. That is what makes the contract address
+   changeable without a redeploy: it is data now, not a constant in this file.
+
+   Everything here is an OVERRIDE. A field the operator has not published is
+   absent from the row and the compiled-in default above stands — which is why
+   this module only ever writes into the DOM when it has something to write.
+
+   Two sources, in order:
+     1. GET /api/settings   what every visitor sees
+     2. localStorage        only when there is no backend at all, so the operator
+                            panel still works on a static host. That changes
+                            nothing for anybody else, and the panel says so.
+
+   Operator text is rendered with textContent, never innerHTML. The API
+   validates it as well, but the guarantee that matters is structural: a string
+   that is never parsed as markup cannot become markup.
+   ===================================================================== */
+const Settings = (() => {
+  const LOCAL_KEY = 'peak.settings';
+  const POLL_MS = 10000;
+
+  let row = {};
+
+  /* A snapshot of the compiled-in copy, taken before anything can overwrite it.
+     Without this, clearing a published override would leave the PREVIOUS
+     override in force: CONFIG.copy would still hold the function compiled from
+     it, because "no new value" and "back to the default" look identical when
+     you only ever assign forwards. */
+  const COPY_BASE = {
+    safe: { head: CONFIG.copy.safe.head, body: CONFIG.copy.safe.body, sub: CONFIG.copy.safe.sub },
+    hype: { head: CONFIG.copy.hype.head, body: CONFIG.copy.hype.body, sub: CONFIG.copy.hype.sub }
+  };
+
+  const COPY_COLS = {
+    safe: ['copy_safe_head', 'copy_safe_body', 'copy_safe_sub'],
+    hype: ['copy_hype_head', 'copy_hype_body', 'copy_hype_sub']
+  };
+
+  /**
+   * Turn a published template into the function the banner calls.
+   *
+   * {next} and {mc} resolve to empty at the summit, where there is no next camp,
+   * so a template written for the middle of the climb still reads correctly at
+   * the top instead of printing "undefined".
+   */
+  function template(text){
+    return (c, next) => text
+      .replace(/\{camp\}/g, c.name)
+      .replace(/\{next\}/g, next ? next.name : '')
+      .replace(/\{mc\}/g, next ? fmtShort(next.mc) : '')
+      .replace(/\{alt\}/g, c.alt.toLocaleString('en-US'))
+      .replace(/\{sym\}/g, row.token_symbol || 'PEAK');
+  }
+
+  function setLink(el, url){
+    if (url){
+      el.href = url;
+      el.classList.remove('off');
+      el.removeAttribute('aria-disabled');
+    } else {
+      el.removeAttribute('href');
+      el.classList.add('off');
+      el.setAttribute('aria-disabled', 'true');
+    }
+  }
+
+  function apply(next){
+    row = next && typeof next === 'object' ? next : {};
+
+    /* ---- branding ---- */
+    if (row.token_name) $('brand-name').textContent = row.token_name;
+    if (row.token_symbol) $('tick').textContent = '$' + row.token_symbol;
+    if (row.token_name || row.token_symbol){
+      document.title = `${row.token_name || 'PEAK'} — the climb`;
+    }
+
+    /* ---- the CA band ---- */
+    const ca = (row.ca || '').trim();
+    const band = $('caband');
+    const text = $('ca-text');
+
+    if (ca){
+      text.textContent = ca;
+      text.classList.remove('pending');
+      band.classList.add('has-ca');
+    } else {
+      text.textContent = 'TO BE LAUNCHED';
+      text.classList.add('pending');
+      band.classList.remove('has-ca');
+    }
+
+    /* An explicit pump.fun URL wins; otherwise the icon points at the token's
+       own page, which is where the CA would have taken you anyway. */
+    setLink($('ico-pump'), row.pump_url || (ca ? 'https://pump.fun/coin/' + ca : ''));
+    setLink($('ico-x'), row.x_url || '');
+
+    /* ---- banner copy, both modes ---- */
+    for (const mode of ['safe', 'hype']){
+      const [headCol, bodyCol, subCol] = COPY_COLS[mode];
+      const base = COPY_BASE[mode];
+      CONFIG.copy[mode] = {
+        head: row[headCol] || base.head,
+        body: row[bodyCol] ? template(row[bodyCol]) : base.body,
+        sub:  row[subCol]  || base.sub
+      };
+    }
+
+    /* ---- the note under the route list ---- */
+    if (row.ladder_note) $('ladder-note').textContent = row.ladder_note;
+
+    /* ---- the feed ----
+       Prefill only. The endpoint box is the operator's own control and lives in
+       their browser, so this never overwrites a choice made here. */
+    if (row.feed_url && !$('in-endpoint').value.trim()){
+      $('in-endpoint').value = '/api/feed';
+    }
+  }
+
+  async function load(){
+    let next = null;
+    try {
+      const res = await fetch('/api/settings', { cache: 'no-store' });
+      /* A static host answers /api/settings with the page itself rather than
+         JSON. The content type is what tells the two apart — a 200 alone would
+         have this parse HTML and quietly keep the defaults forever. */
+      const type = res.headers.get('content-type') || '';
+      if (res.ok && type.includes('application/json')){
+        next = (await res.json())?.settings || null;
+      }
+    } catch { /* no backend, or offline — fall through to local storage */ }
+
+    if (!next){
+      try { next = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch {}
+    }
+
+    apply(next || {});
+  }
+
+  function watch(){
+    setInterval(load, POLL_MS);
+    /* A tab hidden for an hour must not show an hour-old CA, and a background
+       interval is throttled to a crawl anyway. Refresh on the way back instead
+       of trusting the timer. */
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+    window.addEventListener('focus', load);
+  }
+
+  /* Click to copy. The async clipboard API needs a secure context, so the
+     fallback matters — this is often opened over plain http on a phone. */
+  async function copyCa(){
+    const ca = (row.ca || '').trim();
+    if (!ca) return;
+    const chip = $('ca-chip');
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(ca);
+      ok = true;
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = ca;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch {}
+      ta.remove();
+    }
+    chip.textContent = ok ? 'COPIED' : 'FAILED';
+    chip.classList.toggle('done', ok);
+    setTimeout(() => { chip.textContent = 'COPY'; chip.classList.remove('done'); }, 1600);
+  }
+
+  $('ca-copy').addEventListener('click', copyCa);
+
+  return { load, watch, get: () => row };
+})();
+
+/* =====================================================================
    Boot
    ===================================================================== */
 seedReached();
@@ -2035,6 +2319,12 @@ Scene.update(state.mcShown);
 Ladder.update(state.mcShown);
 startSim();
 requestAnimationFrame(loop);
+
+/* Published settings arrive asynchronously and are applied when they land. The
+   page is fully usable in the meantime — every value it shows has a compiled-in
+   default — so nothing waits on the network. */
+Settings.load();
+Settings.watch();
 </script>
 </body>
 </html>

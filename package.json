@@ -1,0 +1,10 @@
+{
+  "name": "peak",
+  "private": true,
+  "version": "1.0.0",
+  "description": "PEAK — market cap as Mount Everest",
+  "type": "module",
+  "scripts": {
+    "feed": "node feed-proxy.mjs"
+  }
+}

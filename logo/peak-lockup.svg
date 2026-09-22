@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 790 400" width="790" height="400" role="img" aria-label="PEAK">
+  <title>PEAK</title>
+  <g transform="translate(170 200) scale(0.625) translate(-256 -256)">
+    <path d="M16 400 L176 112 L264 264 L304 208 L496 400 Z" fill="#4b5c75"/>
+    <path d="M176 112 L217.6 184 L176 212.8 L134.4 184 Z" fill="#e8eef7"/>
+    <path d="M304 208 L332.8 256 L304 275.2 L275.2 256 Z" fill="#c3d0e2"/>
+    <path d="M176 112 L320 216" fill="none" stroke="#22c55e" stroke-width="20"
+          stroke-dasharray="32 32" stroke-linecap="round"/>
+  </g>
+  <!-- Live text, so the wordmark picks up the viewer's UI font. The PNG builds
+       alongside this file have it outlined, so a client who needs a
+       font-independent lockup should use those. -->
+  <text x="370" y="246" fill="#e8eef7"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="132" font-weight="600" letter-spacing="21">PEAK</text>
+</svg>

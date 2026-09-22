@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="PEAK">
+  <title>PEAK</title>
+  <!-- The massif: two summits, the col between them, and the long right flank. -->
+  <path d="M16 400 L176 112 L264 264 L304 208 L496 400 Z" fill="#4b5c75"/>
+  <!-- Snow on the main summit. -->
+  <path d="M176 112 L217.6 184 L176 212.8 L134.4 184 Z" fill="#e8eef7"/>
+  <!-- Snow on the shoulder. -->
+  <path d="M304 208 L332.8 256 L304 275.2 L275.2 256 Z" fill="#c3d0e2"/>
+  <!-- The route: summit to the shoulder, dashed because it is not finished. -->
+  <path d="M176 112 L320 216" fill="none" stroke="#22c55e" stroke-width="20"
+        stroke-dasharray="32 32" stroke-linecap="round"/>
+</svg>

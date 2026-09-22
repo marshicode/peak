@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>PEAK — operator panel</title>
+<style>
+  :root{
+    --bg:#070a10; --panel:#0e131c; --panel-2:#141b26;
+    --line:#1d2735; --line-2:#2a3648;
+    --ink:#e8eef7; --ink-2:#93a1b5; --ink-3:#5c6b80;
+    --green:#22c55e; --green-dim:#0d3b22;
+    --amber:#f5a524; --red:#ef4444;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  a{color:var(--green);}
+
+  /* ---------- lock screen ---------- */
+  #lock{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  .lockcard{
+    width:100%;max-width:380px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:26px;
+  }
+  .lockcard h1{font-size:19px;letter-spacing:.02em;margin-bottom:5px;}
+  .lockcard p{font-size:12.5px;color:var(--ink-2);margin-bottom:18px;}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.11em;
+        color:var(--ink-3);font-weight:600;margin-bottom:6px;}
+  input[type=password],input[type=text],input[type=url],textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line-2);
+    border-radius:8px;padding:9px 11px;color:var(--ink);font-size:13.5px;
+    font-family:var(--sans);
+  }
+  input[type=text],input[type=url],textarea{font-family:var(--mono);font-size:12.5px;}
+  input:focus,textarea:focus{outline:none;border-color:#2f6b45;background:#101825;}
+  textarea{resize:vertical;min-height:62px;line-height:1.45;}
+
+  .btn{
+    font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.05em;
+    text-transform:uppercase;background:var(--panel-2);color:var(--ink-2);
+    border:1px solid var(--line-2);border-radius:8px;padding:9px 15px;
+    cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{background:#1b2433;color:var(--ink);border-color:#3a4a63;}
+  .btn.primary{background:var(--green-dim);color:var(--green);border-color:#1c6b3f;}
+  .btn.primary:hover{background:#11492a;color:#4ade80;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn.wide{width:100%;}
+
+  .msg{font-size:12.5px;border-radius:8px;padding:9px 12px;margin-top:13px;display:none;}
+  .msg.show{display:block;}
+  .msg.err{background:#2a1414;border:1px solid #6b2020;color:#fca5a5;}
+  .msg.ok{background:#0f2a1a;border:1px solid #1c6b3f;color:#86efac;}
+  .msg.warn{background:#2a2410;border:1px solid #6b5a1c;color:#fcd34d;}
+  .msg code{font-family:var(--mono);font-size:11.5px;}
+
+  /* ---------- panel ---------- */
+  #panel{display:none;max-width:940px;margin:0 auto;padding:22px 22px 80px;}
+  #panel.show{display:block;}
+  .hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+  .hd h1{font-size:20px;letter-spacing:.02em;}
+  .hd .sp{flex:1;}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:18px;}
+
+  fieldset{
+    border:1px solid var(--line);border-radius:12px;background:var(--panel);
+    padding:16px 18px 18px;margin-bottom:14px;
+  }
+  legend{
+    font-size:11px;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--ink-2);font-weight:700;padding:0 7px;
+  }
+  .row{margin-bottom:14px;}
+  .row:last-child{margin-bottom:0;}
+  .hint{font-size:11.5px;color:var(--ink-3);margin-top:5px;}
+  .hint code{font-family:var(--mono);background:var(--panel-2);padding:1px 5px;
+             border-radius:4px;font-size:11px;}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+  @media (max-width:640px){.grid2{grid-template-columns:minmax(0,1fr);}}
+
+  /* a field that is using the value compiled into index.html rather than an
+     override — the operator should be able to tell those apart at a glance */
+  .tag{
+    font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;padding:1.5px 6px;border-radius:4px;margin-left:7px;
+    vertical-align:1px;
+  }
+  .tag.def{background:#1a2230;color:var(--ink-3);border:1px solid var(--line-2);}
+  .tag.set{background:var(--green-dim);color:var(--green);border:1px solid #1c6b3f;}
+
+  .warnbox{
+    background:#2a2410;border:1px solid #6b5a1c;border-radius:8px;
+    padding:10px 12px;font-size:11.5px;color:#fcd34d;line-height:1.5;margin-bottom:14px;
+  }
+
+  /* ---------- preview ---------- */
+  .preview{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin-bottom:14px;
+  }
+  .preview .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.14em;
+                color:var(--ink-2);font-weight:700;margin-bottom:11px;}
+  .caband{
+    display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+    background:#0b1017;border:1px solid var(--line-2);border-radius:10px;
+    padding:9px 13px;
+  }
+  .caband .soc{display:flex;gap:7px;}
+  .caband .ico{
+    width:26px;height:26px;display:grid;place-items:center;border-radius:7px;
+    background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink-2);
+  }
+  .caband .ico svg{width:14px;height:14px;display:block;}
+  .caband .k{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.12em;
+    color:var(--ink-3);
+  }
+  .caband .v{
+    font-family:var(--mono);font-size:12.5px;color:var(--ink);
+    overflow-wrap:anywhere;
+  }
+  .caband .v.pending{color:var(--amber);letter-spacing:.06em;}
+  .stickybar{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    background:rgba(10,14,20,.94);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);padding:11px 22px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .stickybar .sp{flex:1;}
+  .stickybar .state{font-size:12px;color:var(--ink-3);font-family:var(--mono);}
+</style>
+</head>
+<body>
+
+<!-- ======================= LOCK ======================= -->
+<div id="lock">
+  <form class="lockcard" id="lockform">
+    <h1>PEAK — operator</h1>
+    <p id="lock-sub">Enter the admin password to edit what visitors see.</p>
+    <div class="row">
+      <label for="pw">Password</label>
+      <input type="password" id="pw" autocomplete="current-password" autofocus>
+    </div>
+    <button class="btn primary wide" id="unlock" type="submit">Unlock</button>
+    <div class="msg err" id="lock-msg"></div>
+  </form>
+</div>
+
+<!-- ======================= PANEL ======================= -->
+<div id="panel">
+  <div class="hd">
+    <h1>Operator panel</h1>
+    <span class="sp"></span>
+    <a class="btn" href="/" target="_blank" rel="noopener">Open site ↗</a>
+    <button class="btn" id="signout" type="button">Sign out</button>
+  </div>
+  <div class="meta" id="meta"></div>
+
+  <div class="msg warn" id="localmode">
+    <b>No backend detected.</b> Edits are saved to <b>this browser only</b> and will
+    not reach visitors. Deploy with <code>api/</code> and the two secrets set, then
+    reload — see the Admin section of <code>README.md</code>.
+  </div>
+  <div class="msg err" id="notconfigured">
+    The server is missing its secrets, so nothing can be published yet. Set
+    <code>ADMIN_SECRET</code>, <code>SUPABASE_URL</code> and
+    <code>SUPABASE_SERVICE_ROLE_KEY</code> in the deployment, then reload.
+  </div>
+
+  <div class="preview">
+    <div class="lbl">Live preview — the CA band</div>
+    <div class="caband">
+      <div class="soc">
+        <span class="ico" title="pump.fun">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <path d="M21.8855 184.247C-2.01603 162.076 -3.41853 124.726 18.753 100.824L94.7609 18.8855C116.932 -5.01605 154.282 -6.41855 178.184 15.7529C202.085 37.9244 203.488 75.274 181.316 99.1756L105.308 181.115C83.1367 205.016 45.7871 206.419 21.8855 184.247Z" fill="currentColor"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M140.341 130.232L174.776 93.1092C193.598 72.8194 192.407 41.1138 172.117 22.2927C151.827 3.47151 120.122 4.66206 101.301 24.9518L66.8651 62.0744L140.341 130.232ZM181.316 99.1756C203.488 75.274 202.085 37.9244 178.184 15.7529C154.282 -6.41855 116.932 -5.01605 94.7609 18.8855L54.259 62.5478L140.814 142.838L181.316 99.1756Z" fill="#1D3934" opacity=".55"/>
+          </svg>
+        </span>
+        <span class="ico" title="X">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/>
+          </svg>
+        </span>
+      </div>
+      <span class="k">CA</span>
+      <span class="v pending" id="pv-ca">TO BE LAUNCHED</span>
+    </div>
+  </div>
+
+  <form id="form">
+    <fieldset>
+      <legend>Launch</legend>
+      <div class="row">
+        <label for="f-ca">Contract address<span class="tag def" id="t-ca">default</span></label>
+        <input type="text" id="f-ca" spellcheck="false" placeholder="Paste the Solana mint address">
+        <div class="hint">
+          Base58, 32–44 characters. The page checks this and refuses anything else.
+          Leave it empty to show <code>CA: TO BE LAUNCHED</code>.
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="row">
+          <label for="f-tokenSymbol">Token symbol<span class="tag def" id="t-tokenSymbol">default</span></label>
+          <input type="text" id="f-tokenSymbol" spellcheck="false" placeholder="PEAK">
+          <div class="hint">The <code>$</code> is added for you — enter <code>PEAK</code>, not <code>$PEAK</code>.</div>
+        </div>
+        <div class="row">
+          <label for="f-tokenName">Wordmark<span class="tag def" id="t-tokenName">default</span></label>
+          <input type="text" id="f-tokenName" spellcheck="false" placeholder="PEAK">
+          <div class="hint">Shown next to the mountain glyph in the top bar.</div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Links</legend>
+      <div class="row">
+        <label for="f-pumpUrl">pump.fun URL<span class="tag def" id="t-pumpUrl">default</span></label>
+        <input type="url" id="f-pumpUrl" spellcheck="false" placeholder="https://pump.fun/coin/…">
+        <div class="hint">Leave empty and the pump icon links to <code>pump.fun/coin/&lt;CA&gt;</code> automatically.</div>
+      </div>
+      <div class="row">
+        <label for="f-xUrl">X URL<span class="tag def" id="t-xUrl">default</span></label>
+        <input type="url" id="f-xUrl" spellcheck="false" placeholder="https://x.com/…">
+      </div>
+      <div class="hint">An icon with no URL is drawn but not clickable. <code>https://</code> only.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Live feed</legend>
+      <div class="row">
+        <label for="f-feedUrl">Upstream feed URL<span class="tag def" id="t-feedUrl">default</span></label>
+        <input type="url" id="f-feedUrl" spellcheck="false" placeholder="https://your-provider.example/token/{mint}">
+        <div class="hint">
+          <code>{mint}</code> is replaced with the published CA, so the feed follows the
+          address. Served to the page at <code>/api/feed</code>. See <code>INTEGRATION.md</code>
+          for which providers are legitimate.
+        </div>
+      </div>
+      <div class="row">
+        <label for="f-rpcUrl">Solana RPC URL<span class="tag def" id="t-rpcUrl">default</span></label>
+        <input type="url" id="f-rpcUrl" spellcheck="false" placeholder="https://mainnet.helius-rpc.com/?api-key=…">
+        <div class="hint">
+          Stored for the on-chain reads. A paid endpoint is needed for anything that
+          enumerates holders — the public ones refuse <code>getTokenLargestAccounts</code>.
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Banner copy — compliant</legend>
+      <div class="row">
+        <label for="f-copySafeHead">Heading<span class="tag def" id="t-copySafeHead">default</span></label>
+        <input type="text" id="f-copySafeHead" placeholder="camp reached">
+      </div>
+      <div class="row">
+        <label for="f-copySafeBody">Body<span class="tag def" id="t-copySafeBody">default</span></label>
+        <textarea id="f-copySafeBody" placeholder="The climb has reached {camp}. The next stop is {next}, at ${mc} market cap."></textarea>
+        <div class="hint" id="tpl-hint"></div>
+      </div>
+      <div class="row">
+        <label for="f-copySafeSub">Footer line<span class="tag def" id="t-copySafeSub">default</span></label>
+        <input type="text" id="f-copySafeSub" placeholder="Market-cap milestones only. No return is promised or implied.">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Banner copy — hype</legend>
+      <div class="warnbox">
+        Hype mode uses buy-solicitation language. Under MiCA's retail
+        incentive-promotion rules and US securities law this is the version that
+        creates exposure. Editing these fields does <b>not</b> change which mode ships
+        on — compliant copy is still the default and hype is still behind the
+        toggle in Feed setup.
+      </div>
+      <div class="row">
+        <label for="f-copyHypeHead">Heading<span class="tag def" id="t-copyHypeHead">default</span></label>
+        <input type="text" id="f-copyHypeHead" placeholder="camp cleared">
+      </div>
+      <div class="row">
+        <label for="f-copyHypeBody">Body<span class="tag def" id="t-copyHypeBody">default</span></label>
+        <textarea id="f-copyHypeBody" placeholder="{camp} CLEARED. Don't stop — buy more to reach {next}!"></textarea>
+      </div>
+      <div class="row">
+        <label for="f-copyHypeSub">Footer line<span class="tag def" id="t-copyHypeSub">default</span></label>
+        <input type="text" id="f-copyHypeSub" placeholder="Buy pressure is what moves this mountain.">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Route panel</legend>
+      <div class="row">
+        <label for="f-ladderNote">Note under the route list<span class="tag def" id="t-ladderNote">default</span></label>
+        <textarea id="f-ladderNote" placeholder="Camps mark market-cap milestones only. Nothing on this screen is a promise of return, a yield, or an entitlement."></textarea>
+        <div class="hint">
+          Compliance wording. It is editable because wording does change, but think
+          before weakening it — see <code>INTEGRATION.md</code> §4.
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+  <div class="stickybar">
+    <button class="btn primary" id="publish" type="button">Publish</button>
+    <button class="btn" id="revert" type="button">Discard changes</button>
+    <span class="sp"></span>
+    <span class="state" id="state"></span>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   PEAK — operator panel
+
+   The password is checked on the server (api/admin-auth.js) and then sent as
+   `x-admin-secret` on every publish. Nothing here decides whether a write is
+   allowed; the server does, on every request. A password compared in this file
+   would be theatre, because this file is public.
+   ===================================================================== */
+
+const $ = id => document.getElementById(id);
+
+/* Session, not local storage: closing the tab should end the session, and a
+   passphrase that survives a reboot on a shared machine is a liability. */
+const SECRET_KEY = 'peak.admin.secret';
+const LOCAL_KEY  = 'peak.settings';
+
+let MODE = 'server';        /* 'server' | 'local' */
+let CURRENT = null;         /* the row as last read */
+const DRAFT = {};           /* only the keys the operator has touched */
+
+/* Every field, and the DB column it maps to. Order defines the tab order of the
+   diff that gets published. */
+const FIELDS = [
+  ['ca',           'ca'],
+  ['tokenSymbol',  'token_symbol'],
+  ['tokenName',    'token_name'],
+  ['pumpUrl',      'pump_url'],
+  ['xUrl',         'x_url'],
+  ['feedUrl',      'feed_url'],
+  ['rpcUrl',       'rpc_url'],
+  ['copySafeHead', 'copy_safe_head'],
+  ['copySafeBody', 'copy_safe_body'],
+  ['copySafeSub',  'copy_safe_sub'],
+  ['copyHypeHead', 'copy_hype_head'],
+  ['copyHypeBody', 'copy_hype_body'],
+  ['copyHypeSub',  'copy_hype_sub'],
+  ['ladderNote',   'ladder_note'],
+];
+
+function showMsg(el, text){
+  el.textContent = text;
+  el.classList.add('show');
+}
+function hideMsg(el){ el.classList.remove('show'); }
+
+/* ---------------------------------------------------------------------
+   Boot
+   --------------------------------------------------------------------- */
+async function boot(){
+  /* Ask the server whether it has a password at all. A GET that fails, or that
+     answers with HTML instead of JSON, means there is no backend behind this
+     page — a static host, or a file:// open. */
+  let configured = null;
+  try {
+    const res = await fetch('/api/admin-auth', { cache: 'no-store' });
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await res.json();
+      configured = Boolean(data.configured);
+    }
+  } catch { /* stays null → local mode */ }
+
+  if (configured === null) {
+    MODE = 'local';
+    $('lock').style.display = 'none';
+    showMsg($('localmode'), $('localmode').textContent.trim());
+    enterPanel();
+    return;
+  }
+
+  if (!configured) {
+    $('unlock').disabled = true;
+    $('lock-sub').textContent = 'This deployment has no admin password set.';
+    showMsg($('notconfigured'), $('notconfigured').textContent.trim());
+    return;
+  }
+
+  /* A secret left over from an earlier unlock in this tab: skip the prompt, but
+     still prove it, because it may have been rotated since. */
+  const saved = sessionStorage.getItem(SECRET_KEY);
+  if (saved && await tryUnlock(saved)) return;
+  $('pw').focus();
+}
+
+async function tryUnlock(secret){
+  try {
+    const res = await fetch('/api/admin-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret }),
+    });
+    if (!res.ok) return false;
+    sessionStorage.setItem(SECRET_KEY, secret);
+    enterPanel();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+$('lockform').addEventListener('submit', async e => {
+  e.preventDefault();
+  const secret = $('pw').value;
+  if (!secret) return;
+  $('unlock').disabled = true;
+  hideMsg($('lock-msg'));
+  const ok = await tryUnlock(secret);
+  $('unlock').disabled = false;
+  if (!ok){
+    showMsg($('lock-msg'), 'Wrong password.');
+    $('pw').select();
+  }
+});
+
+$('signout').addEventListener('click', () => {
+  sessionStorage.removeItem(SECRET_KEY);
+  location.reload();
+});
+
+/* ---------------------------------------------------------------------
+   The editor
+   --------------------------------------------------------------------- */
+function enterPanel(){
+  $('lock').style.display = 'none';
+  $('panel').classList.add('show');
+  renderTemplateHint();
+  load();
+}
+
+function renderTemplateHint(){
+  $('tpl-hint').innerHTML = '';
+  const t = document.createElement('span');
+  t.append('Placeholders: ');
+  for (const p of ['{camp}', '{next}', '{mc}', '{alt}', '{sym}']){
+    const c = document.createElement('code');
+    c.textContent = p;
+    t.append(c, document.createTextNode(' '));
+  }
+  t.append('— an empty {next} or {mc} means there is no next camp, so it is safe at the summit.');
+  $('tpl-hint').append(t);
+}
+
+/** The value to show for a field: the operator's unsaved edit, else the row. */
+function shown(key){
+  if (key in DRAFT) return DRAFT[key];
+  return CURRENT ? (CURRENT[column(key)] ?? '') : '';
+}
+
+const column = key => FIELDS.find(f => f[0] === key)[1];
+
+function load(){
+  if (MODE === 'local'){
+    let row = {};
+    try { row = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}') || {}; } catch {}
+    CURRENT = row;
+    fill();
+    $('meta').textContent = 'local mode — nothing is published to the server';
+    return;
+  }
+  fetch('/api/settings', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      CURRENT = data?.settings || {};
+      fill();
+      const when = CURRENT.updated_at ? new Date(CURRENT.updated_at).toLocaleString() : 'never';
+      $('meta').textContent =
+        `last published ${when} by ${CURRENT.updated_by || '—'}`;
+    })
+    .catch(() => {
+      CURRENT = {};
+      fill();
+      $('meta').textContent = 'could not read the current settings';
+    });
+}
+
+function fill(){
+  for (const [key] of FIELDS){
+    const el = $('f-' + key);
+    if (el) el.value = shown(key);
+  }
+  updateTags();
+  updatePreview();
+  setState('');
+}
+
+/**
+ * Mark each field as overriding the compiled-in value or falling back to it.
+ * Without this the operator cannot tell "I set this to the same text" from
+ * "I never set this", which is exactly the distinction that matters when the
+ * page has a fallback.
+ */
+function updateTags(){
+  for (const [key] of FIELDS){
+    const tag = $('t-' + key);
+    if (!tag) continue;
+    const set = Boolean(CURRENT && CURRENT[column(key)]);
+    tag.className = 'tag ' + (set ? 'set' : 'def');
+    tag.textContent = set ? 'published' : 'default';
+  }
+}
+
+function updatePreview(){
+  const ca = ($('f-ca').value || '').trim();
+  const v = $('pv-ca');
+  if (ca){ v.textContent = ca; v.className = 'v'; }
+  else   { v.textContent = 'TO BE LAUNCHED'; v.className = 'v pending'; }
+}
+
+let dirty = false;
+for (const [key] of FIELDS){
+  const el = $('f-' + key);
+  if (!el) continue;
+  el.addEventListener('input', () => {
+    DRAFT[key] = el.value;
+    if (key === 'ca') updatePreview();
+    dirty = true;
+    setState('unsaved changes');
+  });
+}
+
+function setState(text){ $('state').textContent = text; }
+
+$('revert').addEventListener('click', () => {
+  for (const k of Object.keys(DRAFT)) delete DRAFT[k];
+  dirty = false;
+  fill();
+});
+
+/* ---------------------------------------------------------------------
+   Publish
+   --------------------------------------------------------------------- */
+$('publish').addEventListener('click', async () => {
+  const btn = $('publish');
+
+  /* Only the fields the operator actually touched are sent. The endpoint is a
+     PATCH, so an untouched field keeps whatever is already published — which is
+     what makes it safe to publish one change from a phone without the rest of
+     the panel having loaded correctly. */
+  const payload = {};
+  for (const [key] of FIELDS){
+    if (key in DRAFT) payload[key] = DRAFT[key];
+  }
+
+  if (!Object.keys(payload).length){
+    setState('nothing to publish');
+    return;
+  }
+
+  if (MODE === 'local'){
+    const merged = { ...(CURRENT || {}), ...payload };
+    for (const [key] of FIELDS){
+      const col = column(key);
+      if (key in payload) merged[col] = payload[key].trim() || null;
+    }
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
+    } catch {
+      setState('could not write to this browser');
+      return;
+    }
+    for (const k of Object.keys(DRAFT)) delete DRAFT[k];
+    dirty = false;
+    CURRENT = merged;
+    fill();
+    setState('saved locally');
+    return;
+  }
+
+  btn.disabled = true;
+  setState('publishing…');
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-secret': sessionStorage.getItem(SECRET_KEY) || '',
+      },
+      body: JSON.stringify({ settings: payload }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 401){
+      sessionStorage.removeItem(SECRET_KEY);
+      setState('');
+      alert('The password was refused. Unlock again.');
+      location.reload();
+      return;
+    }
+    if (!res.ok){
+      setState('');
+      alert('Publish failed: ' + (data.error || res.status));
+      return;
+    }
+
+    CURRENT = data.settings || {};
+    for (const k of Object.keys(DRAFT)) delete DRAFT[k];
+    dirty = false;
+    fill();
+    setState('published');
+  } catch (err){
+    setState('');
+    alert('Publish failed: ' + (err?.message || err));
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* A publish in flight should not be lost to a stray close, and an unsaved edit
+   should not vanish without a word. */
+window.addEventListener('beforeunload', e => {
+  if (!dirty) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+boot();
+</script>
+</body>
+</html>
