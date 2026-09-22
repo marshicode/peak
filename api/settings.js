@@ -173,7 +173,14 @@ function coerce(key, spec, raw) {
       if (!["https:", "http:", "wss:", "ws:"].includes(u.protocol)) {
         throw new Error(`${label} must be http(s) or ws(s)`);
       }
-      return { col: spec.col, value: u.toString() };
+      /* Store the OPERATOR'S string, not `u.toString()`.
+         `new URL().toString()` percent-encodes the braces in `{mint}` to
+         `%7Bmint%7D`, and api/feed.js substitutes on the literal token — so the
+         placeholder was destroyed at publish time and the proxy called an
+         upstream URL containing `%7Bmint%7D`, which no provider understands.
+         The parsed URL is used for VALIDATION only; the scheme is checked above
+         and the column's CHECK constraint re-checks it. */
+      return { col: spec.col, value: s };
     }
     case "text": {
       if (s.length > spec.max) {

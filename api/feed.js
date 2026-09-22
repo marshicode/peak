@@ -55,20 +55,29 @@ function num(v) {
  */
 function mapUpstream(raw) {
   const t = raw?.data?.token ?? raw?.token ?? raw?.data ?? raw ?? {};
+  /* DexScreener answers `{ pairs: [ { marketCap, priceUsd, txns:{h24:{buys,sells}} } ] }`
+     — a LIST of pairs rather than one token object, so it is unwrapped separately
+     and its paths are appended to each chain. `marketCap` is preferred over `fdv`
+     because the ladder is about circulating value; for most new tokens the two
+     are equal, and fdv is the honest fallback when marketCap is absent. */
+  const pair = Array.isArray(t.pairs) ? t.pairs[0] : (t.pairs ?? null);
+  const h24 = pair?.txns?.h24 ?? pair?.txns?.h6 ?? pair?.txns?.h1 ?? null;
   /* Each chain ends with the frame's OWN field names.
      The frame contract documented in README/INTEGRATION is
      { marketCapUsd, priceUsd, buys, sells, holders, buySol?, sellSol? }, so an
      upstream that already speaks it — another instance of this proxy, a
      self-hosted feed-proxy.mjs, a hand-rolled endpoint — must map cleanly.
-     Without these the proxy answered such an upstream with a frame full of
-     holes, which is indistinguishable from a provider outage. Provider-native
-     names stay first so they still win. */
+     Provider-native names stay first so they still win. */
   return {
-    marketCapUsd: num(t.marketCap?.usd ?? t.market_cap ?? t.mcap ?? t.usdMarketCap ?? t.marketCapUsd),
-    priceUsd: num(t.price?.usd ?? t.priceUsd ?? t.price),
-    buys: num(t.txns?.buys ?? t.buys ?? t.buyCount) ?? 0,
-    sells: num(t.txns?.sells ?? t.sells ?? t.sellCount) ?? 0,
-    holders: num(t.holders ?? t.holderCount ?? t.holder_count) ?? 0,
+    marketCapUsd: num(t.marketCap?.usd ?? t.market_cap ?? t.mcap ?? t.usdMarketCap ?? t.marketCapUsd
+                      ?? pair?.marketCap ?? pair?.fdv),
+    priceUsd: num(t.price?.usd ?? t.priceUsd ?? t.price ?? pair?.priceUsd),
+    buys: num(t.txns?.buys ?? t.buys ?? t.buyCount ?? h24?.buys) ?? 0,
+    sells: num(t.txns?.sells ?? t.sells ?? t.sellCount ?? h24?.sells) ?? 0,
+    /* Deliberately NOT defaulted to 0. DexScreener has no holder count, and
+       "we could not look" must not render as "there are none" — the page shows a
+       dash until a feed actually supplies one. */
+    holders: num(t.holders ?? t.holderCount ?? t.holder_count),
     buySol: num(t.volume?.buySOL ?? t.volumeSol?.buy ?? t.buyVolumeSol ?? t.buy_volume_sol ?? t.buySOL ?? t.buySol),
     sellSol: num(t.volume?.sellSOL ?? t.volumeSol?.sell ?? t.sellVolumeSol ?? t.sell_volume_sol ?? t.sellSOL ?? t.sellSol),
     ts: Date.now(),

@@ -888,7 +888,11 @@ const state = {
      mountain needs somewhere to put the climber. It is not a market
      measurement until the feed supplies one, and the readouts must not treat
      it as one. */
-  hasData: false
+  hasData: false,
+  /* Separate from hasData: a provider can supply a market cap and no holder
+     count at all. DexScreener is exactly that case, and showing "0 holders" for
+     a token with thousands is a claim, not a gap. */
+  hasHolders: false
 };
 state.price = state.mc / CONFIG.token.supply;
 
@@ -1999,7 +2003,7 @@ function apply(d){
   state.sellSol = lastSellSol;
 
   const holdersIn = fin(d.holders);
-  if (holdersIn !== null) state.holders = Math.max(0, holdersIn);
+  if (holdersIn !== null){ state.holders = Math.max(0, holdersIn); state.hasHolders = true; }
 
   checkCamps(prevMc, state.mc);
 }
@@ -2043,7 +2047,8 @@ function loop(t){
   $('s-bs').textContent      = state.hasData
     ? `${state.buys} / ${state.sells} · ${fmtSol(state.buySol)} / ${fmtSol(state.sellSol)}`
     : DASH;
-  $('s-holders').textContent = state.hasData ? state.holders.toLocaleString('en-US') : DASH;
+  $('s-holders').textContent = (state.hasData && state.hasHolders)
+    ? state.holders.toLocaleString('en-US') : DASH;
   /* The summit is the top of the ROUTE, so this is a target rather than a
      reading and it shows whether or not anything is connected. It used to be
      set to the current market cap, so the pill read "summit $12,000" beside a
