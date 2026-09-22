@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SummitPad — Concept Review</title>
+<style>
+  :root{
+    --bg:#f7f8fa;
+    --surface:#ffffff;
+    --surface-2:#f1f3f7;
+    --border:#e2e6ee;
+    --border-strong:#cbd3e0;
+    --ink:#141a24;
+    --ink-2:#3d4757;
+    --ink-3:#6b7688;
+    --accent:#2f6f4e;
+    --accent-soft:#e8f2ec;
+    --warn:#a8431f;
+    --warn-soft:#fdf0ea;
+    --flag:#8a6a12;
+    --flag-soft:#fdf7e6;
+    --blue:#2c5c94;
+    --blue-soft:#eaf1f9;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:15px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:56px 32px 80px;}
+
+  /* ---------- header ---------- */
+  header{border-bottom:2px solid var(--ink);padding-bottom:28px;margin-bottom:44px;}
+  .kicker{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:600;margin-bottom:14px;
+  }
+  h1{font-size:42px;line-height:1.12;letter-spacing:-.02em;font-weight:700;margin-bottom:14px;}
+  h1 .sub{color:var(--ink-3);font-weight:400;}
+  .lede{font-size:17px;color:var(--ink-2);max-width:70ch;}
+  .meta{
+    margin-top:22px;display:flex;gap:10px;flex-wrap:wrap;
+  }
+  .chip{
+    font-size:12px;font-weight:600;padding:5px 12px;border-radius:99px;
+    background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);
+  }
+
+  /* ---------- thesis ---------- */
+  .thesis{
+    background:var(--surface);border:1px solid var(--border);
+    border-left:5px solid var(--accent);
+    border-radius:var(--radius);padding:26px 30px;margin-bottom:48px;
+  }
+  .thesis .label{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:700;color:var(--accent);margin-bottom:10px;
+  }
+  .thesis p{font-size:20px;line-height:1.5;font-weight:600;letter-spacing:-.01em;}
+  .thesis p em{font-style:normal;background:var(--accent-soft);padding:1px 6px;border-radius:5px;}
+  .thesis .note{margin-top:12px;font-size:14px;font-weight:400;color:var(--ink-2);line-height:1.6;}
+
+  /* ---------- section ---------- */
+  section{margin-bottom:52px;}
+  h2{
+    font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:700;color:var(--ink-3);margin-bottom:20px;
+    padding-bottom:10px;border-bottom:1px solid var(--border);
+  }
+
+  /* ---------- flaw cards ---------- */
+  .flaws{display:grid;gap:14px;}
+  .flaw{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:20px 22px;
+    display:grid;grid-template-columns:34px 1fr;gap:16px;align-items:start;
+  }
+  .flaw .n{
+    width:34px;height:34px;border-radius:9px;background:var(--warn-soft);
+    color:var(--warn);font-weight:700;font-size:15px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .flaw h3{font-size:16px;font-weight:700;margin-bottom:6px;letter-spacing:-.01em;}
+  .flaw p{font-size:14px;color:var(--ink-2);}
+  .flaw .verdict{
+    display:inline-block;margin-top:10px;font-size:12px;font-weight:700;
+    color:var(--warn);background:var(--warn-soft);
+    padding:3px 10px;border-radius:6px;
+  }
+
+  /* ---------- math strip ---------- */
+  .math{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);overflow:hidden;
+  }
+  .math table{width:100%;border-collapse:collapse;font-size:14px;}
+  .math th{
+    text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;padding:14px 18px;
+    background:var(--surface-2);border-bottom:1px solid var(--border);
+  }
+  .math td{padding:13px 18px;border-bottom:1px solid var(--border);color:var(--ink-2);}
+  .math tr:last-child td{border-bottom:none;}
+  .math td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink);}
+  .math tr.hot td{background:var(--warn-soft);color:var(--warn);font-weight:600;}
+  .math tr.hot td:last-child{color:var(--warn);}
+
+  /* ---------- ladder ---------- */
+  .ladder{display:flex;flex-direction:column-reverse;gap:10px;}
+  .rung{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px 22px;
+    display:grid;grid-template-columns:150px 1fr 120px;gap:20px;align-items:center;
+    position:relative;
+  }
+  .rung::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    border-radius:var(--radius) 0 0 var(--radius);
+  }
+  .rung.r1::before{background:#7aa88f;}
+  .rung.r2::before{background:#5d9377;}
+  .rung.r3::before{background:#3f7d5e;}
+  .rung.r4::before{background:#2f6f4e;}
+  .rung.r5::before{background:#1f5a3d;}
+  .rung .tier{font-weight:700;font-size:15px;letter-spacing:-.01em;}
+  .rung .tier span{display:block;font-size:12px;font-weight:600;color:var(--accent);margin-top:3px;font-variant-numeric:tabular-nums;}
+  .rung .mission{font-size:14px;color:var(--ink-2);}
+  .rung .mission b{color:var(--ink);font-weight:600;}
+  .rung .cap{
+    text-align:right;font-size:12px;color:var(--ink-3);
+  }
+  .rung .cap b{display:block;font-size:16px;color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;}
+  .riskpill{
+    display:inline-block;margin-top:6px;font-size:10px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 8px;border-radius:99px;
+  }
+  .risk-low{background:var(--accent-soft);color:var(--accent);}
+  .risk-med{background:var(--flag-soft);color:var(--flag);}
+  .risk-high{background:var(--warn-soft);color:var(--warn);}
+
+  /* ---------- moves ---------- */
+  .moves{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
+  .move{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:20px 22px;
+  }
+  .move .num{
+    font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--accent);
+    text-transform:uppercase;margin-bottom:8px;
+  }
+  .move h4{font-size:15px;font-weight:700;margin-bottom:7px;letter-spacing:-.01em;}
+  .move p{font-size:13.5px;color:var(--ink-2);}
+
+  /* ---------- two col ---------- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .panel{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:22px 24px;
+  }
+  .panel h4{
+    font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    font-weight:700;margin-bottom:14px;
+  }
+  .panel.do h4{color:var(--accent);}
+  .panel.dont h4{color:var(--warn);}
+  .panel ul{list-style:none;font-size:14px;color:var(--ink-2);}
+  .panel li{padding:7px 0 7px 22px;position:relative;border-bottom:1px solid var(--surface-2);}
+  .panel li:last-child{border-bottom:none;}
+  .panel li::before{position:absolute;left:0;font-weight:700;font-size:13px;}
+  .panel.do li::before{content:"✓";color:var(--accent);}
+  .panel.dont li::before{content:"✕";color:var(--warn);}
+
+  /* ---------- roadmap ---------- */
+  .road{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+  .phase{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px 20px;position:relative;
+  }
+  .phase .pnum{
+    font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--blue);margin-bottom:8px;
+  }
+  .phase h5{font-size:14.5px;font-weight:700;margin-bottom:8px;}
+  .phase p{font-size:13px;color:var(--ink-2);line-height:1.55;}
+
+  /* ---------- kpi ---------- */
+  .kpis{display:flex;flex-wrap:wrap;gap:10px;}
+  .kpi{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:99px;padding:9px 18px;font-size:13px;font-weight:600;color:var(--ink-2);
+  }
+  .kpi.zero{background:var(--warn-soft);border-color:#f0d5c8;color:var(--warn);}
+
+  /* ---------- footer ---------- */
+  footer{
+    margin-top:64px;padding-top:24px;border-top:1px solid var(--border);
+    font-size:12.5px;color:var(--ink-3);line-height:1.7;
+  }
+
+  @media (max-width:760px){
+    .wrap{padding:36px 20px 60px;}
+    h1{font-size:30px;}
+    .rung{grid-template-columns:1fr;gap:8px;}
+    .rung .cap{text-align:left;}
+    .cols{grid-template-columns:1fr;}
+    .thesis p{font-size:17px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Concept Review · Pre-Design</div>
+    <h1>SummitPad<br><span class="sub">Market-cap milestones as real-world mountain missions</span></h1>
+    <p class="lede">A launchpad where community tokens unlock funded expeditions, guide support, gear partnerships and trail restoration — with a public milestone ladder behind every launch.</p>
+    <div class="meta">
+      <span class="chip">22 September 2026</span>
+      <span class="chip">Strategy &amp; mechanism design</span>
+      <span class="chip">Verdict: strong brand, broken trigger</span>
+    </div>
+  </header>
+
+  <div class="thesis">
+    <div class="label">The one-line fix</div>
+    <p>Market cap is the <em>scoreboard</em>, not the <em>trigger</em>.</p>
+    <p class="note">Keep the mountain, keep the milestones, keep the public ladder. Change what pulls the lever — fund missions from accrued platform fees held in a public escrow, and unlock each tier against that escrow balance rather than a price target.</p>
+  </div>
+
+  <section>
+    <h2>Three flaws that would kill it as written</h2>
+    <div class="flaws">
+      <div class="flaw">
+        <div class="n">1</div>
+        <div>
+          <h3>Market cap is not money</h3>
+          <p>A $30,000 market cap token cannot fund a $40,000 expedition. Market cap is a derived valuation, not a treasury — and at micro-cap scale a single $5k buy moves the price 50%+, so a milestone becomes an open invitation to whoever spends first.</p>
+          <span class="verdict">Math problem — fixable</span>
+        </div>
+      </div>
+      <div class="flaw">
+        <div class="n">2</div>
+        <div>
+          <h3>Price-triggered payouts are securities-shaped</h3>
+          <p>Money in, common enterprise, expectation of profit, derived from the team's efforts. That is Howey on its face. In the EU, MiCA has applied in full since December 2024 with the transition window closed on 1 July 2026 — and a tradable token mandates a full white paper, with incentive promotions restricted for retail. A published payout ladder is also a public bounty on wash-trading to the threshold.</p>
+          <span class="verdict">Legal + criminal exposure</span>
+        </div>
+      </div>
+      <div class="flaw">
+        <div class="n">3</div>
+        <div>
+          <h3>Physical injury liability is uncapped</h3>
+          <p>Altitude illness, falls, exposure, road transit. Branding a trip creates duty of care regardless of waivers. One death on a SummitPad-branded mission is an existential event — legal, financial and reputational.</p>
+          <span class="verdict">Tail risk — the one that ends companies</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why the money doesn't work at the low tiers</h2>
+    <div class="math">
+      <table>
+        <thead>
+          <tr><th>Mission</th><th>Realistic cost</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Regional guided day-hike, 10 people</td><td>$1,500 – 4,000</td></tr>
+          <tr><td>3-day guided trek, 12 people, incl. transport</td><td>$12,000 – 30,000</td></tr>
+          <tr><td>International expedition, 20 people, incl. flights</td><td>$60,000 – 150,000</td></tr>
+          <tr class="hot"><td>A "$500k market cap" token's real extractable liquidity</td><td>a few tens of thousands, at best</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Redesigned ladder — thresholds in accrued escrow, not market cap</h2>
+    <div class="ladder">
+      <div class="rung r1">
+        <div class="tier">Base Camp<span>$2,500 escrow</span></div>
+        <div class="mission"><b>Local trail cleanup day</b> + community meetup — low altitude, near-zero liability, strong PR, and it proves the entire operational loop.</div>
+        <div class="cap"><b>30</b>cap <span class="riskpill risk-low">Very low risk</span></div>
+      </div>
+      <div class="rung r2">
+        <div class="tier">Ridge<span>$15,000 escrow</span></div>
+        <div class="mission"><b>Regional guided day-hike</b> + gear kit, co-funded with a licensed outfitter partner.</div>
+        <div class="cap"><b>10</b>cap <span class="riskpill risk-low">Low risk</span></div>
+      </div>
+      <div class="rung r3">
+        <div class="tier">Summit<span>$50,000 escrow</span></div>
+        <div class="mission"><b>3-day guided trek</b> + transport subsidy + gear partnership.</div>
+        <div class="cap"><b>12</b>cap <span class="riskpill risk-med">Medium risk</span></div>
+      </div>
+      <div class="rung r4">
+        <div class="tier">High Camp<span>$150,000 escrow</span></div>
+        <div class="mission"><b>International expedition</b> + guide support + documentary crew.</div>
+        <div class="cap"><b>20</b>cap <span class="riskpill risk-high">High risk</span></div>
+      </div>
+      <div class="rung r5">
+        <div class="tier">Expedition<span>$400,000 escrow</span></div>
+        <div class="mission"><b>Flagship multi-week expedition</b> + scholarship slots + trail-restoration grant.</div>
+        <div class="cap"><b>24</b>cap <span class="riskpill risk-high">High risk</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Five moves — keep the mountain, change the machinery</h2>
+    <div class="moves">
+      <div class="move">
+        <div class="num">Move 01</div>
+        <h4>Trigger on the escrow, not the chart</h4>
+        <p>Milestones unlock when the Community Mission Escrow crosses a threshold. Market cap is displayed as narrative progress only and never moves money.</p>
+      </div>
+      <div class="move">
+        <div class="num">Move 02</div>
+        <h4>Reward experiences, not instruments</h4>
+        <p>The reward is the trip, the guide, the gear, the subsidy. A funded experience is a marketing cost, not a distribution — this alone removes most securities and promotion-law exposure.</p>
+      </div>
+      <div class="move">
+        <div class="num">Move 03</div>
+        <h4>Replace the race with a fair draw</h4>
+        <p>Snapshot eligibility → application → proof-of-personhood → randomised draw weighted by holding duration. "First 20 to register" is a bot magnet and a promotion-law problem.</p>
+      </div>
+      <div class="move">
+        <div class="num">Move 04</div>
+        <h4>Separate the entities</h4>
+        <p>Token entity, operations entity, and licensed outfitter partners — genuine arm's-length contracts with clear disclosure. Liability containment, not a shell game.</p>
+      </div>
+      <div class="move">
+        <div class="num">Move 05</div>
+        <h4>Fund like a budget, report like a charity</h4>
+        <p>Publish the escrow address. Publish every spend. Publish post-mission accounting — what each dollar bought and who went. Your strongest trust asset, at almost no cost.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The operating posture</h2>
+    <div class="cols">
+      <div class="panel do">
+        <h4>Do</h4>
+        <ul>
+          <li>Partner with licensed, insured local outfitters</li>
+          <li>Act as discovery, funding and coordination layer</li>
+          <li>Require outfitter liability + participant accident + evacuation cover</li>
+          <li>Assumption-of-risk agreement, medical self-certification, fitness pre-qualification</li>
+          <li>Launch with a trail cleanup, not an expedition</li>
+          <li>Confirm permits and commercial-use authorisations per jurisdiction</li>
+        </ul>
+      </div>
+      <div class="panel dont">
+        <h4>Don't</h4>
+        <ul>
+          <li>Promise rewards contingent on price or market cap</li>
+          <li>Use "guaranteed," "returns" or APY language</li>
+          <li>Let any wallet be able to push a milestone over the line</li>
+          <li>Run trips in-house before insurance and safety are real</li>
+          <li>Open with high-altitude or high-risk terrain</li>
+          <li>Treat a liability waiver as a shield — it is a layer</li>
+          <li>Operate EU-facing marketing before a white paper exists</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Phased roadmap</h2>
+    <div class="road">
+      <div class="phase">
+        <div class="pnum">Phase 0</div>
+        <h5>Foundations</h5>
+        <p>Securities counsel, MiCA analysis, insurance broker, operations entity, two outfitter partners, audited escrow contract, official rules template. Nothing ships before this.</p>
+      </div>
+      <div class="phase">
+        <div class="pnum">Phase 1</div>
+        <h5>Pilot</h5>
+        <p>One region, one outfitter, one cleanup mission, ~30 people. Treasury-funded, zero token rewards. Prove operations, safety, verification and public reporting.</p>
+      </div>
+      <div class="phase">
+        <div class="pnum">Phase 2</div>
+        <h5>Ladder live</h5>
+        <p>Fee-to-escrow routing activated, public escrow dashboard, ladder published against escrow thresholds, Ridge tier executed.</p>
+      </div>
+      <div class="phase">
+        <div class="pnum">Phase 3</div>
+        <h5>Scale</h5>
+        <p>Second region, gear partnerships, documentary series, Summit and High Camp tiers, scholarship programme.</p>
+      </div>
+      <div class="phase">
+        <div class="pnum">Phase 4</div>
+        <h5>Protocol</h5>
+        <p>License the mission framework to other launches. The product becomes compliant real-world reward infrastructure — far more defensible than a launchpad.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Measure these — none of them are price</h2>
+    <div class="kpis">
+      <span class="kpi">Fees accrued into escrow</span>
+      <span class="kpi">Verified unique humans</span>
+      <span class="kpi">Missions funded / completed</span>
+      <span class="kpi zero">Safety incidents — target zero</span>
+      <span class="kpi">Cost per participant</span>
+      <span class="kpi">Earned media value</span>
+      <span class="kpi">12-month participant retention</span>
+      <span class="kpi">% of escrow publicly accounted</span>
+    </div>
+  </section>
+
+  <footer>
+    <strong>Strategic and commercial review only.</strong> Not legal, tax, insurance or safety advice. Every recommendation touching securities law, MiCA, promotion law, privacy or liability must be validated by qualified counsel in each target jurisdiction before implementation. MiCA has applied in full since 30 December 2024; the transitional window closed 1 July 2026.
+  </footer>
+
+</div>
+</body>
+</html>

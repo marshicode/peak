@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PEAK — the climb</title>
+<style>
+  :root{
+    --bg:#070a10;
+    --panel:#0e131c;
+    --panel-2:#141b26;
+    --line:#1d2735;
+    --line-2:#2a3648;
+    --ink:#e8eef7;
+    --ink-2:#93a1b5;
+    --ink-3:#5c6b80;
+    --green:#22c55e;
+    --green-dim:#0d3b22;
+    --amber:#f5a524;
+    --red:#ef4444;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:var(--sans);font-size:14px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;overflow:hidden;
+  }
+  .app{height:100vh;display:grid;grid-template-rows:auto 1fr auto;}
+
+  /* ============ TOP BAR ============ */
+  .topbar{
+    display:flex;align-items:center;gap:22px;
+    padding:11px 20px;background:var(--panel);
+    border-bottom:1px solid var(--line);position:relative;z-index:30;
+  }
+  .brand{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .brand .glyph{width:28px;height:28px;display:block;}
+  .brand .name{font-size:17px;font-weight:600;letter-spacing:.16em;}
+  .brand .tick{
+    font-family:var(--mono);font-size:11px;font-weight:600;
+    color:var(--green);background:var(--green-dim);
+    padding:2px 8px;border-radius:5px;letter-spacing:.06em;
+  }
+  .stats{display:flex;align-items:center;gap:24px;flex:1;min-width:0;}
+  .stat{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .stat .k{
+    font-size:10px;text-transform:uppercase;letter-spacing:.11em;
+    color:var(--ink-3);font-weight:600;white-space:nowrap;
+  }
+  .stat .v{
+    font-family:var(--mono);font-size:15px;font-weight:600;
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .stat .v.big{font-size:20px;color:var(--green);}
+  .stat .v.small{font-size:13px;color:var(--ink-2);}
+  .controls{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .btn{
+    font-family:var(--sans);font-size:11.5px;font-weight:600;
+    letter-spacing:.05em;text-transform:uppercase;
+    background:var(--panel-2);color:var(--ink-2);
+    border:1px solid var(--line-2);border-radius:7px;
+    padding:6px 11px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{background:#1b2433;color:var(--ink);border-color:#3a4a63;}
+  .btn.on{background:var(--green-dim);color:var(--green);border-color:#1c6b3f;}
+  .btn.warn.on{background:#3b1d1d;color:#fca5a5;border-color:#7f2b2b;}
+  .seg{display:flex;border:1px solid var(--line-2);border-radius:7px;overflow:hidden;}
+  .seg .btn{border:none;border-radius:0;border-right:1px solid var(--line-2);}
+  .seg .btn:last-child{border-right:none;}
+
+  /* ============ STAGE ============ */
+  .stage{display:grid;grid-template-columns:1fr 336px;min-height:0;}
+  .scene{position:relative;min-height:0;overflow:hidden;border-right:1px solid var(--line);}
+  #scene{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  #confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+
+  #banner{
+    position:absolute;top:16px;left:50%;transform:translate(-50%,-150%);
+    min-width:400px;max-width:76%;
+    background:linear-gradient(180deg,#12251a,#0d1a13);
+    border:1px solid #1e6b3f;border-radius:12px;
+    padding:12px 20px;text-align:center;
+    box-shadow:0 16px 44px rgba(0,0,0,.66);
+    transition:transform .5s cubic-bezier(.2,.9,.25,1.05),opacity .4s;
+    opacity:0;pointer-events:none;z-index:20;
+  }
+  #banner.show{transform:translate(-50%,0);opacity:1;}
+  #banner .bh{
+    font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--green);margin-bottom:4px;
+  }
+  #banner .bt{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px;}
+  #banner .bt small{
+    font-family:var(--mono);font-size:12px;font-weight:500;
+    color:var(--ink-2);margin-left:8px;
+  }
+  #banner .bs{font-size:12.5px;color:var(--ink-2);}
+  #banner.hype{border-color:#8a5a12;background:linear-gradient(180deg,#2a1f0c,#1a1408);}
+  #banner.hype .bh{color:var(--amber);}
+
+  /* HUD */
+  .hud{
+    position:absolute;left:14px;bottom:12px;right:14px;
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:10;
+  }
+  .hud .pill{
+    background:rgba(11,16,24,.8);backdrop-filter:blur(9px);
+    border:1px solid var(--line-2);border-radius:7px;
+    padding:5px 10px;font-family:var(--mono);font-size:11px;color:var(--ink-2);
+    font-variant-numeric:tabular-nums;
+  }
+  .hud .pill b{color:var(--ink);font-weight:600;}
+  .skyctl{
+    margin-left:auto;display:flex;align-items:center;gap:9px;
+    background:rgba(11,16,24,.8);backdrop-filter:blur(9px);
+    border:1px solid var(--line-2);border-radius:8px;padding:4px 10px;
+  }
+  .skyctl .ph{
+    font-family:var(--mono);font-size:11px;color:var(--ink-2);
+    min-width:126px;font-variant-numeric:tabular-nums;
+  }
+  .skyctl .ph b{color:var(--ink);}
+  .skyctl input[type=range]{
+    width:150px;accent-color:#f5a524;cursor:pointer;
+  }
+  .skyctl .tbtn{
+    font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;
+    background:transparent;color:var(--green);border:1px solid #1c6b3f;
+    border-radius:5px;padding:3px 7px;cursor:pointer;
+  }
+  .skyctl .tbtn.hold{color:var(--amber);border-color:#7a4a12;}
+
+  /* ============ CAMP LADDER ============ */
+  .ladder{background:var(--panel);display:flex;flex-direction:column;min-height:0;}
+  .ladder-hd{
+    padding:12px 16px;border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;justify-content:space-between;
+  }
+  .ladder-hd h2{
+    font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+    font-weight:700;color:var(--ink-2);
+  }
+  .ladder-hd .cnt{font-family:var(--mono);font-size:11px;color:var(--ink-3);}
+  .rungs{flex:1;overflow-y:auto;padding:9px;}
+  .rungs::-webkit-scrollbar{width:7px;}
+  .rungs::-webkit-scrollbar-thumb{background:#243044;border-radius:4px;}
+
+  .rung{
+    position:relative;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel-2);padding:10px 12px 10px 36px;margin-bottom:7px;
+    transition:.3s;
+  }
+  .rung .tent{
+    position:absolute;left:11px;top:13px;width:16px;height:13px;
+  }
+  .rung .tent svg{display:block;width:100%;height:100%;}
+  .rung .tent path{fill:#3a4a63;transition:.3s;}
+  .rung .tent .door{fill:#0e131c;}
+  .rung .rtop{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+  .rung .rname{font-size:13.5px;font-weight:600;letter-spacing:-.01em;}
+  .rung .ralt{
+    font-family:var(--mono);font-size:11px;color:var(--ink-3);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .rung .rmc{
+    font-family:var(--mono);font-size:11px;color:var(--ink-3);
+    font-variant-numeric:tabular-nums;margin-top:2px;
+  }
+  .rung .runlock{
+    font-size:11.5px;color:var(--ink-3);margin-top:6px;line-height:1.45;
+    padding-top:6px;border-top:1px dashed var(--line);
+  }
+  .rung .bar{height:3px;background:#1b2433;border-radius:2px;margin-top:7px;overflow:hidden;}
+  .rung .bar i{
+    display:block;height:100%;width:0;background:#16a34a;
+    border-radius:2px;transition:width .5s ease-out;
+  }
+  .rung.reached{border-color:#1c6b3f;background:linear-gradient(180deg,#0f2018,#0d1a14);}
+  .rung.reached .tent path{fill:var(--green);}
+  .rung.reached .rname{color:var(--green);}
+  .rung.reached .ralt{color:#4ade80;}
+  .rung.reached .rmc{color:#3f9e68;}
+  .rung.reached .runlock{color:var(--ink-2);border-top-color:#1c4a30;}
+  .rung.next{border-color:#3a4a63;}
+  .rung.next .tent path{fill:#7d8b9e;}
+  .rung.next .tent{animation:bobtent 2.1s ease-in-out infinite;}
+  @keyframes bobtent{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
+  .ladder-ft{
+    padding:10px 16px;border-top:1px solid var(--line);
+    font-size:10.5px;color:var(--ink-3);line-height:1.55;
+  }
+
+  /* ============ TAPE ============ */
+  .ticker{
+    height:33px;background:var(--panel);border-top:1px solid var(--line);
+    display:flex;align-items:center;overflow:hidden;
+  }
+  .ticker .lbl{
+    flex-shrink:0;padding:0 14px;font-size:10px;font-weight:700;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+    border-right:1px solid var(--line);height:100%;display:flex;align-items:center;
+  }
+  .ticker .rail{flex:1;display:flex;gap:26px;padding-left:16px;white-space:nowrap;overflow:hidden;}
+  .ticker .ev{
+    font-family:var(--mono);font-size:11.5px;color:var(--ink-2);
+    display:flex;align-items:center;gap:7px;flex-shrink:0;animation:fadein .45s ease-out;
+  }
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .ticker .ev .tag{font-size:9.5px;font-weight:700;letter-spacing:.08em;padding:1px 6px;border-radius:4px;}
+  .ticker .ev.buy .tag{background:var(--green-dim);color:var(--green);}
+  .ticker .ev.sell .tag{background:#3b1d1d;color:#fca5a5;}
+  .ticker .ev.camp .tag{background:#3a2d0c;color:var(--amber);}
+
+  /* ============ DRAWER ============ */
+  .drawer{
+    position:absolute;top:14px;right:14px;width:344px;z-index:40;
+    background:var(--panel);border:1px solid var(--line-2);border-radius:12px;
+    padding:16px;box-shadow:0 22px 60px rgba(0,0,0,.75);display:none;
+    max-height:calc(100% - 28px);overflow-y:auto;
+  }
+  .drawer.open{display:block;}
+  .drawer h3{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin-bottom:12px;
+  }
+  .drawer .row{margin-bottom:13px;}
+  .drawer label{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:5px;font-weight:500;}
+  .drawer input[type=text],.drawer input[type=number]{
+    width:100%;background:#0a0f16;border:1px solid var(--line-2);
+    border-radius:7px;padding:7px 10px;color:var(--ink);
+    font-family:var(--mono);font-size:12px;outline:none;
+  }
+  .drawer input:focus{border-color:#16a34a;}
+  .drawer input[type=range]{width:100%;accent-color:#22c55e;}
+  .drawer .hint{font-size:10.5px;color:var(--ink-3);margin-top:4px;line-height:1.5;}
+  .drawer .warnbox{
+    background:#2a1a0c;border:1px solid #7a4a12;border-radius:8px;
+    padding:10px 12px;font-size:11px;color:#fbbf24;line-height:1.55;margin-top:7px;
+  }
+  .feedstate{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);font-family:var(--mono);}
+  .feedstate .led{width:7px;height:7px;border-radius:50%;background:var(--amber);}
+  .feedstate.live .led{background:var(--green);animation:ledp 1.6s infinite;}
+  .feedstate.off .led{background:var(--red);}
+  @keyframes ledp{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  @media (max-width:1100px){
+    .stage{grid-template-columns:1fr;}
+    .ladder{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="glyph" viewBox="0 0 32 32" fill="none">
+        <path d="M1 26L11 8l5.5 9.5L19 14l12 12z" fill="#4b5c75"/>
+        <path d="M11 8l2.6 4.5-2.6 1.8-2.6-1.8z" fill="#e8eef7"/>
+        <path d="M19 14l1.8 3-1.8 1.2-1.8-1.2z" fill="#c3d0e2"/>
+        <path d="M11 8l9 6.5" stroke="#22c55e" stroke-width="1.4" stroke-dasharray="2 2"/>
+      </svg>
+      <span class="name">PEAK</span>
+      <span class="tick" id="tick">$PEAK</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="k">Market cap</span><span class="v big" id="s-mc">$0</span></div>
+      <div class="stat"><span class="k">Price</span><span class="v small" id="s-price">$0</span></div>
+      <div class="stat"><span class="k">Altitude</span><span class="v small" id="s-alt">—</span></div>
+      <div class="stat"><span class="k">Buys / sells (SOL)</span><span class="v small" id="s-bs">0 / 0</span></div>
+      <div class="stat"><span class="k">Holders</span><span class="v small" id="s-holders">0</span></div>
+      <div class="stat"><span class="k">Next camp</span><span class="v small" id="s-next">—</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="feedstate" id="feedstate"><span class="led"></span><span id="feedlabel">simulated feed</span></div>
+      <div class="seg">
+        <button class="btn on" data-feed="sim">Sim</button>
+        <button class="btn" data-feed="manual">Manual</button>
+        <button class="btn" data-feed="live">Live</button>
+      </div>
+      <button class="btn" id="btn-settings">Feed setup</button>
+      <button class="btn" id="btn-reset">Reset</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="scene" id="scenewrap">
+      <svg id="scene" viewBox="0 0 760 520" preserveAspectRatio="xMidYMid meet"></svg>
+      <canvas id="confetti"></canvas>
+
+      <div id="banner">
+        <div class="bh" id="b-h">camp reached</div>
+        <div class="bt" id="b-t">Camp 1 <small id="b-alt"></small></div>
+        <div class="bs" id="b-s"></div>
+        <div class="bs" id="b-sub" style="margin-top:6px;opacity:.72"></div>
+      </div>
+
+      <div class="hud">
+        <div class="pill">summit <b id="h-summit">$0</b></div>
+        <div class="pill">altitude <b id="h-alt">—</b></div>
+        <div class="pill">camps <b id="h-camps">0 / 6</b></div>
+        <div class="skyctl">
+          <button class="tbtn" id="sky-toggle">AUTO</button>
+          <span class="ph" id="sky-phase">sunrise <b>07:12</b></span>
+          <input type="range" id="sky-time" min="0" max="1000" value="300">
+        </div>
+      </div>
+
+      <div class="drawer" id="drawer">
+        <h3>Feed setup</h3>
+        <div class="row">
+          <label>Live endpoint (JSON or WebSocket)</label>
+          <input type="text" id="in-endpoint" placeholder="https://your-proxy.example/peak-feed">
+          <div class="hint">Expected JSON: <code>{ marketCapUsd, priceUsd, buys, sells, holders }</code>, optionally <code>buySol</code>/<code>sellSol</code> for per-burst SOL volume. Needs a proxy — see <code>INTEGRATION.md</code>.</div>
+        </div>
+        <div class="row">
+          <label>Poll interval (ms)</label>
+          <input type="number" id="in-poll" value="1500" min="300" step="100">
+        </div>
+        <div class="row">
+          <label>Simulated climb speed <span id="spd-val" style="font-family:var(--mono);color:var(--ink-3)">1.0×</span></label>
+          <input type="range" id="in-speed" min="0.2" max="4" step="0.1" value="1">
+        </div>
+        <div class="row">
+          <label>Manual market cap</label>
+          <input type="range" id="in-manual" min="0" max="1000000" step="1000" value="12000">
+          <div class="hint" id="manual-val">$12,000</div>
+        </div>
+        <div class="row">
+          <label>Day / night cycle length <span id="cyc-val" style="font-family:var(--mono);color:var(--ink-3)">120s</span></label>
+          <input type="range" id="in-cycle" min="20" max="300" step="10" value="120">
+        </div>
+        <div class="row">
+          <label>Banner copy mode</label>
+          <div class="seg" style="display:flex">
+            <button class="btn on" data-copy="safe" style="flex:1">Compliant</button>
+            <button class="btn warn" data-copy="hype" style="flex:1">Hype</button>
+          </div>
+          <div class="warnbox" id="copywarn" style="display:none">
+            Hype mode uses buy-solicitation language. Under MiCA's retail
+            incentive-promotion rules and US securities law this is the version
+            that creates exposure. Internal demos only.
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:0">
+          <label>The route</label>
+          <div class="hint" id="cfg-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="ladder">
+      <div class="ladder-hd">
+        <h2>The route</h2>
+        <span class="cnt" id="ladder-cnt">0 / 6</span>
+      </div>
+      <div class="rungs" id="rungs"></div>
+      <div class="ladder-ft">
+        Camps mark market-cap milestones only. Nothing on this screen is a
+        promise of return, a yield, or an entitlement.
+      </div>
+    </aside>
+  </main>
+
+  <footer class="ticker">
+    <div class="lbl">Live tape</div>
+    <div class="rail" id="rail"></div>
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   PEAK — configuration
+   The route follows the real Southeast Ridge of Everest, south side.
+   ===================================================================== */
+const CONFIG = {
+  token: { symbol: '$PEAK', name: 'PEAK', supply: 1_000_000_000 },
+
+  /* Altitude at the trailhead (Lukla) and at the summit. */
+  trailheadAlt: 2860,
+  summitAlt: 8849,
+
+  /* Highest market cap the climb can reach. Set to your last camp. */
+  scaleMax: 1000000,
+
+  /* The route. `f` is graphic position up the mountain (0 = trailhead, 1 = summit).
+     Thresholds are market cap. Altitudes are the real ones. */
+  camps: [
+    { id:'bc',  name:'Base Camp', alt:5364, mc:15000,   f:0.16, x:386,
+      unlock:'Community trail cleanup day — 30 places' },
+    { id:'c1',  name:'Camp 1',    alt:6065, mc:30000,   f:0.30, x:372,
+      unlock:'Top of the Khumbu Icefall — DEX and liquidity costs funded from accrued fees' },
+    { id:'c2',  name:'Camp 2',    alt:6400, mc:100000,  f:0.44, x:362,
+      unlock:'Western Cwm — verified summit mission, 20 places, allocation by draw' },
+    { id:'c3',  name:'Camp 3',    alt:7200, mc:250000,  f:0.60, x:370,
+      unlock:'Lhotse Face — guide support and transport subsidies for the cohort' },
+    { id:'c4',  name:'Camp 4',    alt:7925, mc:500000,  f:0.79, x:386,
+      unlock:'South Col — gear partners and a trail-restoration grant' },
+    { id:'sum', name:'Summit',    alt:8849, mc:1000000, f:1.00, x:400,
+      unlock:'8,849 m — flagship expedition plus scholarship places' }
+  ],
+
+  copy: {
+    safe: {
+      head: 'camp reached',
+      body: (c, next) => next
+        ? `The climb has reached ${c.name}. The next stop is ${next.name}, at $${fmtShort(next.mc)} market cap.`
+        : `The climb has reached the summit. That is the whole route.`,
+      sub: 'Market-cap milestones only. No return is promised or implied.'
+    },
+    hype: {
+      head: 'camp cleared',
+      body: (c, next) => next
+        ? `${c.name.toUpperCase()} CLEARED. Don't stop — buy more to reach ${next.name}!`
+        : `${c.name.toUpperCase()} CLEARED. Keep buying to push past the chart!`,
+      sub: 'Buy pressure is what moves this mountain.'
+    }
+  }
+};
+
+/* =====================================================================
+   Utility
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+function fmtMoney(n){
+  if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(2) + 'M';
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+function fmtShort(n){
+  if (n >= 1e6) return (n/1e6).toFixed(n % 1e6 ? 1 : 0).replace(/\.0$/,'') + 'M';
+  if (n >= 1000) return Math.round(n/1000) + 'k';
+  return String(n);
+}
+function fmtPrice(p){
+  if (p >= 1) return '$' + p.toFixed(4);
+  if (p >= 0.01) return '$' + p.toFixed(6);
+  return '$' + p.toFixed(10).replace(/0+$/,'');
+}
+function fmtAlt(m){ return Math.round(m).toLocaleString('en-US') + ' m'; }
+function fmtFt(m){ return Math.round(m * 3.28084).toLocaleString('en-US') + ' ft'; }
+
+/* hex colour interpolation */
+function hex2rgb(h){ const n = parseInt(h.slice(1), 16); return [n>>16 & 255, n>>8 & 255, n & 255]; }
+function rgb2hex(r){ return '#' + r.map(v => clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join(''); }
+function mixHex(a, b, k){ const A = hex2rgb(a), B = hex2rgb(b); return rgb2hex([lerp(A[0],B[0],k), lerp(A[1],B[1],k), lerp(A[2],B[2],k)]); }
+
+/* map a scene coordinate to a canvas pixel (SVG letterboxes inside the panel) */
+function sceneToCanvas(x, y){
+  const r = $('scene').getBoundingClientRect();
+  const s = Math.min(r.width / 760, r.height / 520);
+  return { x: (r.width - 760*s)/2 + x*s, y: (r.height - 520*s)/2 + y*s };
+}
+
+/* =====================================================================
+   Altitude model
+   ---------------------------------------------------------------------
+   Market cap -> graphic position f is piecewise linear through the camps.
+   f -> real altitude uses the same segments. Both stay consistent, so the
+   number on screen always matches the position on the mountain.
+   ===================================================================== */
+function mcToF(mc){
+  const C = CONFIG.camps;
+  if (mc <= 0) return 0;
+  if (mc >= C[C.length-1].mc) return 1;
+  let prevMc = 0, prevF = 0;
+  for (const c of C){
+    if (mc < c.mc){
+      const k = (mc - prevMc) / (c.mc - prevMc);
+      return prevF + k * (c.f - prevF);
+    }
+    prevMc = c.mc; prevF = c.f;
+  }
+  return 1;
+}
+function fToAlt(f){
+  const C = CONFIG.camps;
+  if (f <= 0) return CONFIG.trailheadAlt;
+  if (f >= 1) return CONFIG.summitAlt;
+  let prevF = 0, prevAlt = CONFIG.trailheadAlt;
+  for (const c of C){
+    if (f < c.f){
+      const k = (f - prevF) / (c.f - prevF);
+      return prevAlt + k * (c.alt - prevAlt);
+    }
+    prevF = c.f; prevAlt = c.alt;
+  }
+  return CONFIG.summitAlt;
+}
+/* x position along the route at graphic height f */
+function routeX(f){
+  const C = CONFIG.camps;
+  let prevF = 0, prevX = 388;
+  for (const c of C){
+    if (f < c.f){
+      const k = (f - prevF) / (c.f - prevF);
+      return prevX + k * (c.x - prevX);
+    }
+    prevF = c.f; prevX = c.x;
+  }
+  return 400;
+}
+
+/* =====================================================================
+   Geometry
+   ===================================================================== */
+const GEO = { w:760, h:520, topY:88, groundY:470, baseY:448 };
+GEO.height = GEO.groundY - GEO.topY;              // 382
+const yForF = f => GEO.groundY - f * GEO.height;
+
+/* =====================================================================
+   The Everest massif — south face skyline, left to right
+   ===================================================================== */
+const RIDGE = [
+  [  0,448],[ 40,432],[ 78,408],[112,382],[142,352],[168,318],[190,282],
+  [206,250],[220,222],[238,202],[256,194],[274,204],[290,226],[304,254],
+  [318,282],[332,304],[342,302],[352,282],[362,252],[370,216],[378,176],
+  [386,136],[393,104],[400, 88],[406,106],[412,132],[418,156],[426,172],
+  [436,176],[446,172],[458,174],[470,166],[482,150],[496,130],[508,116],
+  [516,112],[528,126],[542,148],[558,176],[576,208],[598,240],[622,272],
+  [650,304],[682,336],[716,366],[760,396]
+];
+const RIDGE_PATH = 'M ' + RIDGE.map(p => p[0] + ' ' + p[1]).join(' L ') +
+                   ` L 760 ${GEO.groundY} L 0 ${GEO.groundY} Z`;
+
+/* =====================================================================
+   Day / night keyframes
+   t: 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
+   ===================================================================== */
+const SKY = [
+  { t:0.00, sky:['#03050c','#070c18','#0e1526'], sun:'#c8d8f0', glow:'#22374f',
+    stars:1.00, rock:['#2b3648','#0a0e15'], snow:'#8fa3c4', haze:'#101827', name:'midnight' },
+  { t:0.20, sky:['#070c1e','#141a38','#2e2a46'], sun:'#d8a878', glow:'#4a3a58',
+    stars:0.55, rock:['#333c50','#0d121c'], snow:'#a8aec4', haze:'#1a2033', name:'first light' },
+  { t:0.27, sky:['#16345f','#5a5080','#cf7f52'], sun:'#ffd9a0', glow:'#e8935c',
+    stars:0.08, rock:['#6a5a68','#241d28'], snow:'#f2d2bc', haze:'#8a6a6a', name:'sunrise' },
+  { t:0.36, sky:['#2a63a6','#6ba0d4','#bcd6ea'], sun:'#fff6d8', glow:'#c8ddf0',
+    stars:0.00, rock:['#7d90ad','#2b3543'], snow:'#f4f8fc', haze:'#a8c4dc', name:'morning' },
+  { t:0.50, sky:['#1a68cc','#5fa0e6','#cde2f5'], sun:'#ffffff', glow:'#dceaf8',
+    stars:0.00, rock:['#93a6c2','#38434f'], snow:'#ffffff', haze:'#bcd8ee', name:'noon' },
+  { t:0.63, sky:['#2662b0','#74a4d6','#ddd0b4'], sun:'#fff2cc', glow:'#e8dcc0',
+    stars:0.00, rock:['#8a94a8','#333d49'], snow:'#fdf8ee', haze:'#c4c8c4', name:'afternoon' },
+  { t:0.72, sky:['#2a4c84','#86688c','#eda05e'], sun:'#ffcf90', glow:'#f0a868',
+    stars:0.05, rock:['#8a7060','#2e2620'], snow:'#f8d8b0', haze:'#c08a68', name:'golden hour' },
+  { t:0.78, sky:['#1a2b56','#663d68','#dc6038'], sun:'#ff9a5a', glow:'#d4603a',
+    stars:0.30, rock:['#5c4350','#1e1620'], snow:'#e8a888', haze:'#8a4a44', name:'sunset' },
+  { t:0.86, sky:['#0a1230','#26204a','#4a3450'], sun:'#c08060', glow:'#4a3050',
+    stars:0.78, rock:['#3a3a52','#12131e'], snow:'#a8a0bc', haze:'#2a2438', name:'dusk' },
+  { t:1.00, sky:['#03050c','#070c18','#0e1526'], sun:'#c8d8f0', glow:'#22374f',
+    stars:1.00, rock:['#2b3648','#0a0e15'], snow:'#8fa3c4', haze:'#101827', name:'midnight' }
+];
+
+function skyAt(t){
+  t = ((t % 1) + 1) % 1;
+  let a = SKY[0], b = SKY[SKY.length-1];
+  for (let i = 0; i < SKY.length - 1; i++){
+    if (t >= SKY[i].t && t <= SKY[i+1].t){ a = SKY[i]; b = SKY[i+1]; break; }
+  }
+  const span = b.t - a.t || 1;
+  const k = (t - a.t) / span;
+  return {
+    sky:  a.sky.map((c, i) => mixHex(c, b.sky[i], k)),
+    sun:  mixHex(a.sun, b.sun, k),
+    glow: mixHex(a.glow, b.glow, k),
+    rock: [mixHex(a.rock[0], b.rock[0], k), mixHex(a.rock[1], b.rock[1], k)],
+    snow: mixHex(a.snow, b.snow, k),
+    haze: mixHex(a.haze, b.haze, k),
+    stars: lerp(a.stars, b.stars, k),
+    name: k < 0.5 ? a.name : b.name
+  };
+}
+
+/* =====================================================================
+   State
+   ===================================================================== */
+const state = {
+  mc: 12000, mcShown: 12000, price: 0,
+  buys: 0, sells: 0, holders: 0,
+  buySol: 0, sellSol: 0,
+  reached: new Set(),
+  copyMode: 'safe', feedMode: 'sim',
+  speed: 1, endpoint: '', pollMs: 1500,
+  skyT: 0.30, skyAuto: true, cycleSec: 120
+};
+state.price = state.mc / CONFIG.token.supply;
+
+function seedReached(){
+  state.reached.clear();
+  CONFIG.camps.forEach(c => { if (state.mc >= c.mc) state.reached.add(c.id); });
+}
+
+/* =====================================================================
+   Confetti
+   ===================================================================== */
+const Confetti = (() => {
+  const cv = $('confetti');
+  const ctx = cv.getContext('2d');
+  let parts = [], dpr = 1, W = 0, H = 0;
+  const PALETTE = ['#22c55e','#4ade80','#86efac','#f5a524','#fbbf24','#e8eef7','#38bdf8','#a78bfa'];
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  function burst(o = {}){
+    const n = o.count || 200;
+    const ox = o.x != null ? o.x : W*0.5;
+    const oy = o.y != null ? o.y : H*0.25;
+    for (let i = 0; i < n; i++){
+      const a = Math.random()*Math.PI*2, sp = 2.2 + Math.random()*8.6;
+      parts.push({
+        x: ox + (Math.random()-.5)*90, y: oy + (Math.random()-.5)*34,
+        vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 3.3,
+        w: 5+Math.random()*7, h: 7+Math.random()*9,
+        rot: Math.random()*Math.PI, vr: (Math.random()-.5)*.3,
+        col: PALETTE[(Math.random()*PALETTE.length)|0],
+        life: 1, decay: .0045+Math.random()*.005, round: Math.random() < .28
+      });
+    }
+  }
+  function puff(x, y, color){
+    for (let i = 0; i < 9; i++){
+      const a = -Math.PI/2 + (Math.random()-.5)*1.5, sp = 1.2 + Math.random()*3.4;
+      parts.push({
+        x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+        w: 2.5+Math.random()*3, h: 2.5+Math.random()*3, rot: 0, vr: 0,
+        col: color || '#4ade80', life: 1, decay: .016, round: true
+      });
+    }
+  }
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    for (let i = parts.length-1; i >= 0; i--){
+      const p = parts[i];
+      p.vy += 0.145; p.vx *= 0.992; p.vy *= 0.992;
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= p.decay;
+      if (p.life <= 0 || p.y > H+60){ parts.splice(i,1); continue; }
+      ctx.save();
+      ctx.globalAlpha = clamp(p.life,0,1);
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.col;
+      if (p.round){ ctx.beginPath(); ctx.arc(0,0,p.w/2,0,Math.PI*2); ctx.fill(); }
+      else ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h*(0.4+0.6*Math.abs(Math.cos(p.rot))));
+      ctx.restore();
+    }
+    requestAnimationFrame(frame);
+  }
+  resize(); requestAnimationFrame(frame);
+  return { burst, puff, resize };
+})();
+
+/* =====================================================================
+   Scene
+   ===================================================================== */
+const Scene = (() => {
+  const svg = $('scene');
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, a = {}) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in a) e.setAttribute(k, a[k]);
+    return e;
+  };
+  const halo = { 'paint-order':'stroke', stroke:'#080c14', 'stroke-width':'3', 'stroke-linejoin':'round' };
+
+  /* ---------- defs ---------- */
+  const defs = el('defs');
+
+  const gSky = el('linearGradient', {id:'g-sky', x1:'0', y1:'0', x2:'0', y2:'1'});
+  const skyStops = ['0%','34%','62%','82%','100%'].map(o => {
+    const s = el('stop', {offset:o, 'stop-color':'#000'});
+    gSky.appendChild(s); return s;
+  });
+  defs.appendChild(gSky);
+
+  const gRock = el('linearGradient', {id:'g-rock', x1:'0.15', y1:'0', x2:'0.85', y2:'1'});
+  const rockHi = el('stop', {offset:'0%',  'stop-color':'#8fa3bd'});
+  const rockMid= el('stop', {offset:'55%', 'stop-color':'#4a5b74'});
+  const rockLo = el('stop', {offset:'100%','stop-color':'#1a222c'});
+  gRock.append(rockHi, rockMid, rockLo);
+  defs.appendChild(gRock);
+
+  const gSnow = el('linearGradient', {id:'g-snow', x1:'0', y1:'0', x2:'0', y2:'1'});
+  const snowTop = el('stop', {offset:'0%',  'stop-color':'#fff'});
+  const snowBot = el('stop', {offset:'100%','stop-color':'#b9c8dd'});
+  gSnow.append(snowTop, snowBot);
+  defs.appendChild(gSnow);
+
+  const gHaze = el('linearGradient', {id:'g-haze', x1:'0', y1:'0', x2:'0', y2:'1'});
+  const hazeStop = el('stop', {offset:'0%', 'stop-color':'#000', 'stop-opacity':'0'});
+  const hazeStop2= el('stop', {offset:'100%','stop-color':'#000', 'stop-opacity':'.9'});
+  gHaze.append(hazeStop, hazeStop2);
+  defs.appendChild(gHaze);
+
+  const clip = el('clipPath', {id:'clip-climb'});
+  const clipRect = el('rect', {x:-20, y:470, width:800, height:60});
+  clip.appendChild(clipRect);
+  defs.appendChild(clip);
+
+  const glowF = el('filter', {id:'f-glow', x:'-70%', y:'-70%', width:'240%', height:'240%'});
+  glowF.appendChild(el('feGaussianBlur', {stdDeviation:'5', result:'b'}));
+  const gm = el('feMerge');
+  gm.appendChild(el('feMergeNode', {in:'b'}));
+  gm.appendChild(el('feMergeNode', {in:'SourceGraphic'}));
+  glowF.appendChild(gm);
+  defs.appendChild(glowF);
+
+  const softF = el('filter', {id:'f-soft', x:'-40%', y:'-40%', width:'180%', height:'180%'});
+  softF.appendChild(el('feGaussianBlur', {stdDeviation:'9'}));
+  defs.appendChild(softF);
+
+  /* Pepe's skin — flat leafy frog green, meme-accurate */
+  const gPepe = el('linearGradient', {id:'g-pepe', x1:'0.2', y1:'0', x2:'0.8', y2:'1'});
+  gPepe.append(
+    el('stop', {offset:'0%',  'stop-color':'#79a84a'}),
+    el('stop', {offset:'100%','stop-color':'#5d8a36'})
+  );
+  defs.appendChild(gPepe);
+
+  svg.appendChild(defs);
+
+  /* ---------- sky ---------- */
+  const skyRect = el('rect', {x:0, y:0, width:GEO.w, height:GEO.h, fill:'url(#g-sky)'});
+  svg.appendChild(skyRect);
+
+  /* stars */
+  const starG = el('g');
+  for (let i = 0; i < 190; i++){
+    const x = Math.random()*GEO.w, y = Math.random()*400;
+    starG.appendChild(el('circle', {
+      cx:x.toFixed(1), cy:y.toFixed(1),
+      r:(Math.random()*1.2+.3).toFixed(2), fill:'#dfeaf8',
+      opacity:(0.2+Math.random()*0.7).toFixed(2)
+    }));
+  }
+  svg.appendChild(starG);
+
+  /* celestial body */
+  const bodyG = el('g');
+  const bodyGlow = el('circle', {r:64, filter:'url(#f-soft)'});
+  const body = el('circle', {r:19});
+  bodyG.append(bodyGlow, body);
+  svg.appendChild(bodyG);
+
+  /* distant ranges */
+  const farG = el('g');
+  farG.appendChild(el('path', {
+    d:'M -20 430 L 70 300 L 140 356 L 232 250 L 320 352 L 410 282 L 500 358 L 600 272 L 690 344 L 790 430 Z',
+    fill:'#0d1521', opacity:'.55'
+  }));
+  const hazeBand = el('rect', {x:0, y:280, width:GEO.w, height:170, fill:'url(#g-haze)'});
+  farG.appendChild(hazeBand);
+  farG.appendChild(el('path', {
+    d:'M -20 442 L 60 372 L 150 414 L 240 344 L 330 412 L 420 368 L 520 420 L 610 374 L 700 418 L 790 442 Z',
+    fill:'#0a1119', opacity:'.75'
+  }));
+  svg.appendChild(farG);
+
+  /* summit plume — the jet-stream snow flag off the top */
+  const plume = el('path', {
+    d:`M 400 88 C 430 76, 470 74, 516 84 C 486 88, 452 94, 424 104 C 440 96, 424 92, 400 88 Z`,
+    fill:'#ffffff', opacity:'.3', filter:'url(#f-soft)'
+  });
+  svg.appendChild(plume);
+
+  /* ---------- full silhouette (the whole route, ahead of you) ---------- */
+  const ghost = el('path', {
+    d:RIDGE_PATH, fill:'#0b121d', 'fill-opacity':'.62',
+    stroke:'#43536b', 'stroke-width':'1', 'stroke-dasharray':'5 6', 'stroke-opacity':'.6'
+  });
+  svg.appendChild(ghost);
+
+  /* ---------- climbed portion (clipped at the frontier) ---------- */
+  const climbG = el('g', {'clip-path':'url(#clip-climb)'});
+
+  climbG.appendChild(el('path', {d:RIDGE_PATH, fill:'url(#g-rock)'}));
+
+  /* snow above the snowline */
+  const snowPath = el('path', {
+    d:`M 256 194 L 290 226 L 304 254 L 318 282 L 332 304 L 342 302 L 352 282
+       L 362 252 L 370 216 L 378 176 L 386 136 L 393 104 L 400 88 L 406 106
+       L 412 132 L 418 156 L 426 172 L 436 176 L 446 172 L 458 174 L 470 166
+       L 482 150 L 496 130 L 508 116 L 516 112 L 528 126 L 542 148 L 558 176
+       L 576 208 L 598 240 L 622 272 L 640 292 L 620 300 L 560 268 L 500 240
+       L 460 226 L 430 216 L 410 214 L 380 220 L 350 238 L 320 268 L 296 258
+       L 272 226 Z`,
+    fill:'url(#g-snow)', opacity:'.92'
+  });
+  climbG.appendChild(snowPath);
+
+  /* rock bands — the Yellow Band and Geneva Spur */
+  const bands = el('g', {opacity:'.5'});
+  bands.appendChild(el('path', {
+    d:'M 300 268 L 380 232 L 430 222 L 470 232 L 420 244 L 350 274 Z', fill:'#8a7648'
+  }));
+  bands.appendChild(el('path', {
+    d:'M 372 208 L 400 190 L 424 206 L 400 218 Z', fill:'#7d6a42'
+  }));
+  bands.appendChild(el('path', {
+    d:'M 470 236 L 530 262 L 580 292 L 520 276 Z', fill:'#5c6a7d'
+  }));
+  climbG.appendChild(bands);
+
+  /* lit west face */
+  climbG.appendChild(el('path', {
+    d:'M 400 88 L 386 136 L 378 176 L 370 216 L 362 252 L 352 282 L 342 302 L 332 304 L 340 400 L 380 470 L 400 470 Z',
+    fill:'#ffffff', opacity:'.05'
+  }));
+
+  /* frontier glow along the climb line */
+  const frontier = el('rect', {x:-20, y:470, width:800, height:9, fill:'#7fe3a8', opacity:'.5'});
+  climbG.appendChild(frontier);
+
+  svg.appendChild(climbG);
+
+  /* ---------- glacier foreground ---------- */
+  const ice = el('g');
+  const glacier = el('path', {
+    d:`M 0 448 L 60 436 L 130 442 L 200 430 L 280 440 L 360 432 L 440 442
+       L 520 430 L 600 440 L 680 432 L 760 442 L 760 520 L 0 520 Z`,
+    fill:'#16202e'
+  });
+  ice.appendChild(glacier);
+
+  /* seracs — jagged ice blocks */
+  const seracs = el('g');
+  for (let i = 0; i < 46; i++){
+    const x = 20 + Math.random()*720;
+    const y = 444 + Math.random()*22;
+    const w = 7 + Math.random()*22;
+    const h = 5 + Math.random()*16;
+    seracs.appendChild(el('path', {
+      d:`M ${x} ${y} L ${x+w*0.5} ${y-h} L ${x+w} ${y} Z`,
+      fill:'#9fb4cd', opacity:(0.1 + Math.random()*0.3).toFixed(2)
+    }));
+  }
+  ice.appendChild(seracs);
+
+  /* crevasses */
+  const crev = el('g', {stroke:'#060a11','stroke-width':'1.4', opacity:'.7', fill:'none'});
+  for (let i = 0; i < 13; i++){
+    const x = 30 + i*56 + Math.random()*20;
+    const y = 452 + Math.random()*12;
+    crev.appendChild(el('path', {d:`M ${x} ${y} q 14 ${6+Math.random()*8} 30 2`}));
+  }
+  ice.appendChild(crev);
+  svg.appendChild(ice);
+
+  /* base camp tent village */
+  const village = el('g');
+  const tents = [[318,452],[330,456],[344,450],[356,455],[368,451],[300,456],[284,451],[394,455],[408,450],[420,456]];
+  tents.forEach(([x,y], i) => {
+    const s = 0.8 + (i % 3) * 0.18;
+    const g = el('g', {transform:`translate(${x} ${y}) scale(${s})`});
+    g.appendChild(el('path', {d:'M 0 -9 L 8 2 L -8 2 Z', fill:'#e2c86a', opacity:'.92'}));
+    g.appendChild(el('path', {d:'M 0 -9 L 3 2 L -3 2 Z', fill:'#3a2f14', opacity:'.8'}));
+    village.appendChild(g);
+  });
+  svg.appendChild(village);
+
+  /* ---------- route line ---------- */
+  const routeD = 'M ' + CONFIG.camps.map(c => `${c.x} ${yForF(c.f).toFixed(1)}`).join(' L ');
+  const route = el('path', {
+    d:routeD, fill:'none', stroke:'#f5a524', 'stroke-width':'1.6',
+    'stroke-dasharray':'4 5', opacity:'.62', 'stroke-linecap':'round'
+  });
+  svg.appendChild(route);
+
+  /* ---------- camp markers ---------- */
+  const campG = el('g');
+  const markers = {};
+  CONFIG.camps.forEach(c => {
+    const y = yForF(c.f);
+    const g = el('g', {transform:`translate(${c.x} ${y})`});
+    const pole = el('line', {x1:0, y1:0, x2:0, y2:-17, stroke:'#5c6b80','stroke-width':'1.3'});
+    const tent = el('path', {d:'M 0 -8 L 7 1 L -7 1 Z'});
+    const door = el('path', {d:'M 0 -8 L 2.4 1 L -2.4 1 Z', fill:'#0d131c'});
+    const label = el('text', {
+      'font-family':'ui-monospace,SFMono-Regular,Menlo,monospace',
+      'font-size':'10.5','font-weight':'600','dominant-baseline':'central',
+      x:14, y:-8
+    });
+    label.textContent = `${c.name} · ${c.alt.toLocaleString('en-US')} m`;
+    Object.assign(label.style, halo);
+    g.append(pole, tent, door, label);
+    campG.appendChild(g);
+    markers[c.id] = { g, tent, label, pole };
+  });
+  svg.appendChild(campG);
+
+  /* ---------- climber — Pepe the frog, the actual meme ---------- */
+  const climber = el('g', {filter:'url(#f-glow)'});
+  /* gear */
+  const pRope = el('path', {fill:'none', stroke:'#f5a524', 'stroke-width':'0.9', opacity:'.85'});
+  const pPick = el('path', {stroke:'#c9d6e8', 'stroke-width':'1.2', 'stroke-linecap':'round', fill:'none'});
+  /* legs */
+  const pLegs = el('path', {fill:'none', stroke:'#5d8a36', 'stroke-width':'3', 'stroke-linecap':'round'});
+  /* blue shirt */
+  const pShirt = el('path', {fill:'#2263d4', stroke:'#14213d', 'stroke-width':'0.9'});
+  /* arms */
+  const pArms = el('path', {fill:'none', stroke:'#6c983f', 'stroke-width':'2.4', 'stroke-linecap':'round'});
+  /* head */
+  const pHead = el('path', {fill:'url(#g-pepe)', stroke:'#20400f', 'stroke-width':'1'});
+  /* the lips — wide brown band */
+  const pLip = el('path', {fill:'#8a4a2c', stroke:'#4a2414', 'stroke-width':'0.6'});
+  const pMouth = el('path', {fill:'none', stroke:'#4a2414', 'stroke-width':'0.8', 'stroke-linecap':'round'});
+  /* eyes: white sclera, big pupil, highlight, heavy drooping lid */
+  const pEyeL = el('ellipse', {rx:'3.6', ry:'2.7', fill:'#ffffff', stroke:'#20400f', 'stroke-width':'0.7'});
+  const pEyeR = el('ellipse', {rx:'3.6', ry:'2.7', fill:'#ffffff', stroke:'#20400f', 'stroke-width':'0.7'});
+  const pPupL = el('circle', {r:'1.8', fill:'#0b0e14'});
+  const pPupR = el('circle', {r:'1.8', fill:'#0b0e14'});
+  const pHiL  = el('circle', {r:'0.55', fill:'#ffffff'});
+  const pHiR  = el('circle', {r:'0.55', fill:'#ffffff'});
+  const pLidL = el('path', {fill:'#6c983f', stroke:'#20400f', 'stroke-width':'0.7'});
+  const pLidR = el('path', {fill:'#6c983f', stroke:'#20400f', 'stroke-width':'0.7'});
+  /* nostrils */
+  const pNose = el('path', {fill:'none', stroke:'#20400f', 'stroke-width':'0.8', 'stroke-linecap':'round'});
+  climber.append(pRope, pLegs, pShirt, pArms, pHead, pLip, pMouth,
+                 pEyeL, pEyeR, pPupL, pPupR, pHiL, pHiR, pLidL, pLidR, pNose, pPick);
+  svg.appendChild(climber);
+
+  /* ---------- ripples ---------- */
+  const ripples = el('g');
+  svg.appendChild(ripples);
+  function ripple(x, y){
+    const c = el('circle', {
+      cx:x, cy:y, r:5, fill:'none', stroke:'#22c55e',
+      'stroke-width':'1.3', opacity:'.7'
+    });
+    ripples.appendChild(c);
+    const t0 = performance.now();
+    (function step(t){
+      const k = (t - t0) / 900;
+      if (k >= 1){ c.remove(); return; }
+      c.setAttribute('r', (5 + k*120).toFixed(1));
+      c.setAttribute('opacity', (0.7*(1-k)).toFixed(3));
+      requestAnimationFrame(step);
+    })(t0);
+  }
+
+  /* ---------- sky application ---------- */
+  let curSky = null;
+  function applySky(t){
+    const s = skyAt(t);
+    curSky = s;
+    skyStops[0].setAttribute('stop-color', s.sky[0]);
+    skyStops[1].setAttribute('stop-color', mixHex(s.sky[0], s.sky[1], .5));
+    skyStops[2].setAttribute('stop-color', s.sky[1]);
+    skyStops[3].setAttribute('stop-color', s.sky[2]);
+    skyStops[4].setAttribute('stop-color', mixHex(s.sky[2], '#05080e', .55));
+
+    starG.setAttribute('opacity', s.stars.toFixed(3));
+
+    rockHi.setAttribute('stop-color', s.rock[0]);
+    rockMid.setAttribute('stop-color', mixHex(s.rock[0], s.rock[1], .55));
+    rockLo.setAttribute('stop-color', s.rock[1]);
+    snowTop.setAttribute('stop-color', s.snow);
+    snowBot.setAttribute('stop-color', mixHex(s.snow, s.rock[1], .45));
+
+    hazeStop.setAttribute('stop-color', s.haze);
+    hazeStop2.setAttribute('stop-color', s.haze);
+    glacier.setAttribute('fill', mixHex(s.rock[1], '#1a2636', .5));
+
+    /* sun / moon arc: rises left, sets right */
+    const isDay = t > 0.24 && t < 0.79;
+    const u = isDay ? (t - 0.24)/0.55 : (((t + 0.21) % 1) / 0.45);
+    const ang = u * Math.PI;
+    const bx = 60 + u * 640;
+    const by = 400 - Math.sin(ang) * 330;
+    bodyG.setAttribute('transform', `translate(${bx.toFixed(1)} ${by.toFixed(1)})`);
+    body.setAttribute('fill', isDay ? s.sun : '#dbe6f5');
+    body.setAttribute('r', isDay ? 19 : 14);
+    bodyGlow.setAttribute('fill', s.glow);
+    bodyGlow.setAttribute('opacity', isDay ? '.75' : '.4');
+    bodyG.setAttribute('opacity', (by > 470 ? 0 : 1).toFixed(2));
+    bodyG.dataset.day = isDay ? '1' : '0';
+    return s;
+  }
+  function currentSkyName(){ return curSky ? curSky.name : ''; }
+
+  /* ---------- per-frame update ---------- */
+  function update(mc){
+    const f = mcToF(mc);
+    const climbY = yForF(f);
+    const climberX = routeX(f);
+
+    clipRect.setAttribute('y', climbY.toFixed(1));
+    clipRect.setAttribute('height', Math.max(1, GEO.h - climbY + 20).toFixed(1));
+    frontier.setAttribute('y', (climbY - 4).toFixed(1));
+
+    /* plume shows as you near the summit */
+    plume.setAttribute('opacity', clamp((f - 0.72) / 0.28, 0, 1) * 0.55);
+
+    /* camp markers */
+    CONFIG.camps.forEach(c => {
+      const m = markers[c.id];
+      const on = state.reached.has(c.id);
+      const col = on ? '#22c55e' : '#5c6b80';
+      m.tent.setAttribute('fill', on ? '#22c55e' : '#3a4a63');
+      m.pole.setAttribute('stroke', col);
+      m.label.setAttribute('fill', on ? '#7ee2a4' : '#6b7a90');
+      m.label.setAttribute('opacity', on ? '1' : '.82');
+    });
+
+    /* Chibi Pepe — huge blue pear body, small head, eyes on top, wide lips.
+       Origin (x, y) is his feet on the route. His pupils track the next camp
+       up the mountain — he is always looking where the climb goes next. */
+    const bob = Math.sin(performance.now()/620)*1.1;
+    const x = climberX;
+    const y = climbY + bob;
+    const p = d => d.map(v => v.toFixed(1)).join(' ');
+
+    /* gaze vector: pupils fixed on the summit up the route — he always
+       stares at the mountain above him */
+    let gx = 400 - x, gy = GEO.topY - (y - 43);
+    const gl = Math.hypot(gx, gy) || 1;
+    gx /= gl; gy /= gl;
+
+    /* how steep the slope is right here — legs and rope lean with it */
+    const slope = clamp((routeX(Math.min(1, f + 0.02)) - x) * 0.55, -4, 4);
+
+    /* stubby little legs */
+    pLegs.setAttribute('d',
+      `M ${p([x-4.5, y-5])} L ${p([x-5+slope*0.3, y-0.8])} ` +
+      `M ${p([x+4.5, y-5])} L ${p([x+4+slope*0.5, y-0.5])}`);
+
+    /* the huge blue pear body */
+    pShirt.setAttribute('d',
+      `M ${p([x-7.5, y-30])} ` +
+      `C ${p([x-10.5, y-26])} ${p([x-11.5, y-16])} ${p([x-11, y-9])} ` +
+      `C ${p([x-10.5, y-5.5])} ${p([x-6, y-4])} ${p([x, y-4])} ` +
+      `C ${p([x+6, y-4])} ${p([x+10.5, y-5.5])} ${p([x+11, y-9])} ` +
+      `C ${p([x+11.5, y-16])} ${p([x+10.5, y-26])} ${p([x+7.5, y-30])} ` +
+      `Q ${p([x, y-32.5])} ${p([x-7.5, y-30])} Z`);
+
+    /* stub arms */
+    pArms.setAttribute('d',
+      `M ${p([x-8.7, y-19])} Q ${p([x-11.5, y-17.5])} ${p([x-11.8, y-14])} ` +
+      `M ${p([x+8.7, y-19])} Q ${p([x+11.5, y-17.5])} ${p([x+11.8, y-14])}`);
+
+    /* small head sitting on the big body */
+    pHead.setAttribute('d',
+      `M ${p([x-11, y-33])} ` +
+      `C ${p([x-11.4, y-39])} ${p([x-8.5, y-43.5])} ${p([x-4.5, y-44])} ` +
+      `L ${p([x+4.5, y-44])} ` +
+      `C ${p([x+8.5, y-43.5])} ${p([x+11.4, y-39])} ${p([x+11, y-33])} ` +
+      `C ${p([x+10.7, y-28.5])} ${p([x+7, y-26.5])} ${p([x, y-26.5])} ` +
+      `C ${p([x-7, y-26.5])} ${p([x-10.7, y-28.5])} ${p([x-11, y-33])} Z`);
+
+    /* eyes: big white ovals bulging above the head outline */
+    const ey = y - 43.6;
+    pEyeL.setAttribute('cx', (x-4.2).toFixed(1)); pEyeL.setAttribute('cy', ey.toFixed(1));
+    pEyeR.setAttribute('cx', (x+4.2).toFixed(1)); pEyeR.setAttribute('cy', ey.toFixed(1));
+    pEyeL.setAttribute('rx', '4.5'); pEyeL.setAttribute('ry', '3.5');
+    pEyeR.setAttribute('rx', '4.5'); pEyeR.setAttribute('ry', '3.5');
+    /* pupils aimed up the route at the next camp */
+    pPupL.setAttribute('cx', (x-4.2 + gx*1.6).toFixed(1)); pPupL.setAttribute('cy', (ey + gy*1.6).toFixed(1));
+    pPupR.setAttribute('cx', (x+4.2 + gx*1.6).toFixed(1)); pPupR.setAttribute('cy', (ey + gy*1.6).toFixed(1));
+    pPupL.setAttribute('r', '2.1'); pPupR.setAttribute('r', '2.1');
+    pHiL.setAttribute('cx', (x-5.3).toFixed(1)); pHiL.setAttribute('cy', (ey-1.2).toFixed(1));
+    pHiR.setAttribute('cx', (x+3.1).toFixed(1)); pHiR.setAttribute('cy', (ey-1.2).toFixed(1));
+    /* subtle lids — a hint of the sadness, not a full droop */
+    pLidL.setAttribute('d',
+      `M ${p([x-8.8, ey-0.9])} Q ${p([x-4.2, ey-4.2])} ${p([x+0.4, ey-0.7])} ` +
+      `Q ${p([x-4.2, ey-2.3])} ${p([x-8.8, ey-0.9])} Z`);
+    pLidR.setAttribute('d',
+      `M ${p([x-0.4, ey-0.7])} Q ${p([x+4.2, ey-4.2])} ${p([x+8.8, ey-0.9])} ` +
+      `Q ${p([x+4.2, ey-2.3])} ${p([x-0.4, ey-0.7])} Z`);
+
+    /* nostrils */
+    pNose.setAttribute('d',
+      `M ${p([x-1.8, y-38.4])} L ${p([x-1.4, y-37.9])} ` +
+      `M ${p([x+1.4, y-38.4])} L ${p([x+1.8, y-37.9])}`);
+
+    /* the wide brown lips, nearly head-wide */
+    pLip.setAttribute('d',
+      `M ${p([x-9, y-34.6])} ` +
+      `Q ${p([x, y-36.6])} ${p([x+9, y-34.6])} ` +
+      `Q ${p([x+7.4, y-30.8])} ${p([x, y-30.6])} ` +
+      `Q ${p([x-7.4, y-30.8])} ${p([x-9, y-34.6])} Z`);
+    pMouth.setAttribute('d',
+      `M ${p([x-6.6, y-32.8])} Q ${p([x, y-32])} ${p([x+6.6, y-32.8])}`);
+
+    /* ice axe planted beside him, pointing up-slope */
+    pPick.setAttribute('d',
+      `M ${p([x+12.2, y-13.5])} L ${p([x+13.2, y-22])} ` +
+      `M ${p([x+11.2, y-21.2])} L ${p([x+15.4, y-22.8])}`);
+
+    /* safety rope trailing down the route behind him */
+    pRope.setAttribute('d',
+      `M ${p([x-5+slope*0.3, y-0.8])} Q ${p([x-13, y-3])} ${p([x-16, y+7])}`);
+  }
+
+  return { update, applySky, currentSkyName, ripple, climbYFor: f => yForF(f) };
+})();
+
+/* =====================================================================
+   Camp ladder
+   ===================================================================== */
+const Ladder = (() => {
+  const wrap = $('rungs');
+  const nodes = {};
+  const TENT = `<svg viewBox="0 0 16 13"><path d="M 8 0 L 16 13 L 0 13 Z"/><path class="door" d="M 8 4 L 10.5 13 L 5.5 13 Z"/></svg>`;
+
+  CONFIG.camps.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'rung';
+    d.innerHTML =
+      `<span class="tent">${TENT}</span>
+       <div class="rtop">
+         <span class="rname">${c.name}</span>
+         <span class="ralt">${c.alt.toLocaleString('en-US')} m</span>
+       </div>
+       <div class="rmc">$${fmtShort(c.mc)} market cap · ${fmtFt(c.alt)}</div>
+       <div class="bar"><i></i></div>
+       <div class="runlock">${c.unlock}</div>`;
+    wrap.appendChild(d);
+    nodes[c.id] = { root:d, bar:d.querySelector('.bar i') };
+  });
+
+  function update(mc){
+    let count = 0;
+    const next = CONFIG.camps.find(c => mc < c.mc);
+    CONFIG.camps.forEach(c => {
+      const n = nodes[c.id];
+      const on = state.reached.has(c.id);
+      n.root.classList.toggle('reached', on);
+      n.root.classList.toggle('next', !on && next && next.id === c.id);
+      if (on){ count++; n.bar.style.width = '100%'; }
+      else {
+        const i = CONFIG.camps.indexOf(c);
+        const prev = CONFIG.camps[i-1];
+        const from = prev ? prev.mc : 0;
+        n.bar.style.width = (clamp((mc - from)/(c.mc - from), 0, 1)*100).toFixed(1) + '%';
+      }
+    });
+    $('ladder-cnt').textContent = `${count} / ${CONFIG.camps.length}`;
+    $('h-camps').textContent = `${count} / ${CONFIG.camps.length}`;
+    return next;
+  }
+  return { update };
+})();
+
+/* =====================================================================
+   Banner
+   ===================================================================== */
+const Banner = (() => {
+  const box = $('banner');
+  let timer = null;
+  function show(c, next){
+    const mode = CONFIG.copy[state.copyMode];
+    box.classList.toggle('hype', state.copyMode === 'hype');
+    $('b-h').textContent = mode.head;
+    $('b-t').innerHTML = `${c.name} <small>${c.alt.toLocaleString('en-US')} m · ${fmtFt(c.alt)}</small>`;
+    $('b-s').textContent = mode.body(c, next);
+    $('b-sub').textContent = mode.sub;
+    box.classList.add('show');
+    clearTimeout(timer);
+    timer = setTimeout(() => box.classList.remove('show'), 7200);
+  }
+  return { show };
+})();
+
+/* =====================================================================
+   Tape
+   ===================================================================== */
+const Tape = (() => {
+  const rail = $('rail');
+  function push(kind, text){
+    const d = document.createElement('div');
+    d.className = 'ev ' + kind;
+    d.innerHTML = `<span class="tag">${kind.toUpperCase()}</span><span>${text}</span>`;
+    rail.prepend(d);
+    while (rail.children.length > 14) rail.lastChild.remove();
+  }
+  return { push };
+})();
+
+/* =====================================================================
+   Camp detection
+   ===================================================================== */
+function checkCamps(prevMc, mc){
+  const next = CONFIG.camps.find(c => mc < c.mc);
+  CONFIG.camps.forEach(c => {
+    if (prevMc < c.mc && mc >= c.mc && !state.reached.has(c.id)){
+      state.reached.add(c.id);
+      const at = sceneToCanvas(c.x, Scene.climbYFor(c.f) - 24);
+      Confetti.burst({ count: 210, x: at.x, y: at.y });
+      Banner.show(c, next);
+      Tape.push('camp', `${c.name} reached · ${c.alt.toLocaleString('en-US')} m · $${fmtShort(c.mc)}`);
+    }
+  });
+}
+
+/* =====================================================================
+   Feeds
+   ===================================================================== */
+let feedHandle = null, lastBuys = 0, lastSells = 0, lastBuySol = 0, lastSellSol = 0;
+
+/* format a SOL volume: "3.42 SOL" / "0.42 SOL" / "1,240 SOL" */
+function fmtSol(n){
+  if (n >= 100) return Math.round(n).toLocaleString('en-US') + ' SOL';
+  if (n >= 1) return n.toFixed(2) + ' SOL';
+  return n.toFixed(3) + ' SOL';
+}
+
+function stopFeed(){ if (feedHandle && feedHandle.stop) feedHandle.stop(); feedHandle = null; }
+
+function setFeedState(kind, label){
+  const s = $('feedstate');
+  s.classList.toggle('live', kind === 'live');
+  s.classList.toggle('off', kind === 'off');
+  $('feedlabel').textContent = label;
+}
+
+function startSim(){
+  let mc = state.mc, buys = state.buys, sells = state.sells, holders = state.holders;
+  let buySol = state.buySol, sellSol = state.sellSol;
+  setFeedState('sim', 'simulated feed');
+  const tick = () => {
+    const vol = 0.008 + Math.random()*0.022;
+    const dir = Math.random() < 0.56 ? 1 : -1;
+    mc = Math.max(2000, mc * (1 + vol*dir*state.speed));
+    let dbuys = 0, dsells = 0;
+    if (Math.random() < 0.72) dbuys  = 1 + ((Math.random()*3)|0);
+    if (Math.random() < 0.42) dsells = 1 + ((Math.random()*2)|0);
+    buys  += dbuys; sells += dsells;
+    /* every trade is sized in SOL, a few whales show up on the buy side */
+    buySol  += dbuys  * (0.05 + Math.random()*0.6) + (Math.random() < 0.06 ? 1.5 + Math.random()*4 : 0);
+    sellSol += dsells * (0.05 + Math.random()*0.5);
+    if (Math.random() < 0.22) holders += 1 + ((Math.random()*4)|0);
+    apply({ marketCapUsd:mc, priceUsd: mc/CONFIG.token.supply, buys, sells, holders,
+            buySol, sellSol });
+  };
+  const id = setInterval(tick, Math.max(280, 1100/state.speed));
+  feedHandle = { stop: () => clearInterval(id) };
+}
+
+function startManual(){ setFeedState('off', 'manual control'); feedHandle = { stop(){} }; }
+
+function startLive(){
+  const url = state.endpoint.trim();
+  if (!url){
+    setFeedState('off', 'no endpoint set');
+    Tape.push('sell', 'Live feed needs an endpoint — open Feed setup');
+    feedHandle = { stop(){} };
+    return;
+  }
+  if (/^wss?:/i.test(url)){
+    try {
+      const ws = new WebSocket(url);
+      setFeedState('live', 'websocket');
+      ws.onmessage = e => { try { apply(JSON.parse(e.data)); } catch(_){} };
+      ws.onerror = () => setFeedState('off', 'socket error');
+      ws.onclose = () => setFeedState('off', 'socket closed');
+      feedHandle = { stop: () => ws.close() };
+    } catch(_){ setFeedState('off', 'socket failed'); }
+    return;
+  }
+  setFeedState('live', 'polling');
+  let alive = true;
+  const poll = async () => {
+    if (!alive) return;
+    try {
+      const r = await fetch(url, { cache:'no-store' });
+      apply(await r.json());
+      setFeedState('live', 'polling');
+    } catch(_){ setFeedState('off', 'feed unreachable'); }
+    if (alive) setTimeout(poll, state.pollMs);
+  };
+  poll();
+  feedHandle = { stop: () => { alive = false; } };
+}
+
+function apply(d){
+  const prevMc = state.mc;
+  if (typeof d.marketCapUsd === 'number') state.mc = d.marketCapUsd;
+  else if (typeof d.mc === 'number') state.mc = d.mc;
+
+  state.price = typeof d.priceUsd === 'number' ? d.priceUsd : state.mc / CONFIG.token.supply;
+
+  if (typeof d.buys === 'number'){
+    const delta = d.buys - lastBuys;
+    if (delta > 0 && delta < 400){
+      const base = sceneToCanvas(routeX(mcToF(state.mc)), GEO.groundY - 12);
+      for (let i = 0; i < Math.min(delta, 6); i++){
+        Scene.ripple(base.x, base.y);
+        Confetti.puff(base.x + (Math.random()-.5)*300, base.y - Math.random()*170,
+                      Math.random() < .3 ? '#f5a524' : '#4ade80');
+      }
+      /* SOL size for this burst: from the feed if it sends it, else estimated */
+      const dBuySol = typeof d.buySol === 'number' && lastBuys > 0
+        ? Math.max(0, d.buySol - lastBuySol)
+        : delta * (0.05 + Math.random()*0.6) + (Math.random() < 0.06 ? 1.5 + Math.random()*4 : 0);
+      Tape.push('buy', `${delta} buy${delta>1?'s':''} · ${fmtSol(dBuySol)} · cap ${fmtMoney(state.mc)}`);
+      lastBuySol = d.buySol ?? (lastBuySol + dBuySol);
+    }
+    lastBuys = d.buys; state.buys = d.buys;
+  }
+  if (typeof d.sells === 'number'){
+    const delta = d.sells - lastSells;
+    if (delta > 0 && delta < 400){
+      const dSellSol = typeof d.sellSol === 'number' && lastSells > 0
+        ? Math.max(0, d.sellSol - lastSellSol)
+        : delta * (0.05 + Math.random()*0.5);
+      Tape.push('sell', `${delta} sell${delta>1?'s':''} · ${fmtSol(dSellSol)} · cap ${fmtMoney(state.mc)}`);
+      lastSellSol = d.sellSol ?? (lastSellSol + dSellSol);
+    }
+    lastSells = d.sells; state.sells = d.sells;
+  }
+  if (typeof d.buySol === 'number') state.buySol = d.buySol;
+  if (typeof d.sellSol === 'number') state.sellSol = d.sellSol;
+  if (typeof d.holders === 'number') state.holders = d.holders;
+
+  checkCamps(prevMc, state.mc);
+}
+
+/* =====================================================================
+   Main loop
+   ===================================================================== */
+let lastFrame = performance.now(), lastSky = 0;
+
+function loop(t){
+  const dtMs = Math.min(80, t - lastFrame);
+  lastFrame = t;
+
+  /* ease the drawn market cap */
+  const diff = state.mc - state.mcShown;
+  if (Math.abs(diff) > 0.5) state.mcShown += diff * Math.min(1, 0.09 * (dtMs/16.67));
+  else state.mcShown = state.mc;
+
+  Scene.update(state.mcShown);
+
+  /* advance the sky */
+  if (state.skyAuto){
+    state.skyT = (state.skyT + dtMs / (state.cycleSec * 1000)) % 1;
+    $('sky-time').value = Math.round(state.skyT * 1000);
+  }
+  const s = Scene.applySky(state.skyT);
+
+  /* readouts */
+  const f = mcToF(state.mcShown);
+  const alt = fToAlt(f);
+  $('s-mc').textContent = fmtMoney(state.mcShown);
+  $('s-price').textContent = fmtPrice(state.price);
+  $('s-alt').textContent = fmtAlt(alt);
+  $('s-bs').textContent = `${state.buys} / ${state.sells} · ${fmtSol(state.buySol)} / ${fmtSol(state.sellSol)}`;
+  $('s-holders').textContent = state.holders.toLocaleString('en-US');
+  $('h-summit').textContent = fmtMoney(state.mcShown);
+  $('h-alt').textContent = fmtAlt(alt);
+
+  const hrs = state.skyT * 24;
+  const hh = String(Math.floor(hrs)).padStart(2,'0');
+  const mm = String(Math.floor((hrs % 1) * 60)).padStart(2,'0');
+  $('sky-phase').innerHTML = `${s.name} <b>${hh}:${mm}</b>`;
+
+  const next = Ladder.update(state.mcShown);
+  $('s-next').textContent = next ? `${next.name} · $${fmtShort(next.mc)}` : 'summit reached';
+
+  requestAnimationFrame(loop);
+}
+
+/* =====================================================================
+   UI wiring
+   ===================================================================== */
+document.querySelectorAll('[data-feed]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-feed]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    state.feedMode = b.dataset.feed;
+    stopFeed();
+    if (state.feedMode === 'sim') startSim();
+    else if (state.feedMode === 'manual') startManual();
+    else startLive();
+  });
+});
+
+document.querySelectorAll('[data-copy]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-copy]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    state.copyMode = b.dataset.copy;
+    $('copywarn').style.display = state.copyMode === 'hype' ? 'block' : 'none';
+  });
+});
+
+$('btn-settings').addEventListener('click', () => $('drawer').classList.toggle('open'));
+$('in-endpoint').addEventListener('input', e => { state.endpoint = e.target.value; });
+$('in-poll').addEventListener('input', e => { state.pollMs = Math.max(300, +e.target.value || 1500); });
+
+$('in-speed').addEventListener('input', e => {
+  state.speed = +e.target.value;
+  $('spd-val').textContent = state.speed.toFixed(1) + '×';
+  if (state.feedMode === 'sim'){ stopFeed(); startSim(); }
+});
+
+$('in-cycle').addEventListener('input', e => {
+  state.cycleSec = +e.target.value;
+  $('cyc-val').textContent = state.cycleSec + 's';
+});
+
+$('in-manual').addEventListener('input', e => {
+  const v = +e.target.value;
+  $('manual-val').textContent = fmtMoney(v);
+  if (state.feedMode === 'manual') apply({ marketCapUsd: v, priceUsd: v / CONFIG.token.supply });
+});
+
+$('sky-time').addEventListener('input', e => {
+  state.skyT = +e.target.value / 1000;
+  state.skyAuto = false;
+  $('sky-toggle').classList.add('hold');
+  $('sky-toggle').textContent = 'HOLD';
+});
+
+$('sky-toggle').addEventListener('click', () => {
+  state.skyAuto = !state.skyAuto;
+  $('sky-toggle').textContent = state.skyAuto ? 'AUTO' : 'HOLD';
+  $('sky-toggle').classList.toggle('hold', !state.skyAuto);
+});
+
+$('btn-reset').addEventListener('click', () => {
+  stopFeed();
+  state.mc = 12000; state.mcShown = 12000;
+  state.buys = 0; state.sells = 0; state.holders = 0;
+  state.buySol = 0; state.sellSol = 0;
+  lastBuys = 0; lastSells = 0; lastBuySol = 0; lastSellSol = 0;
+  seedReached();
+  $('rail').innerHTML = '';
+  $('in-manual').value = 12000;
+  $('manual-val').textContent = fmtMoney(12000);
+  if (state.feedMode === 'sim') startSim();
+  else if (state.feedMode === 'manual') startManual();
+  else startLive();
+});
+
+$('cfg-list').innerHTML = CONFIG.camps
+  .map(c => `${c.name} — ${c.alt.toLocaleString('en-US')} m — $${fmtShort(c.mc)}`)
+  .join('<br>');
+
+/* =====================================================================
+   Boot
+   ===================================================================== */
+seedReached();
+Scene.applySky(state.skyT);
+Scene.update(state.mcShown);
+Ladder.update(state.mcShown);
+startSim();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# local tooling
+.freebuff/
+.workbuddy-ai/
+
+# dependencies
+node_modules/
+
+# secrets — the feed proxy reads these from the environment, never commit them
+.env
+.env.local
+*.pem
+*.key
+
+# logs
+*.log
+npm-debug.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
