@@ -58,9 +58,23 @@ The page ships in **production posture**. These are hidden:
 | Feed setup | Holds the Compliant / Hype banner toggle — see `INTEGRATION.md` §4. |
 | Reset | Clears the counters; not a visitor's action. |
 
-The feed runs in **Live** mode. With nothing connected it says *awaiting launch*
-and the market cap does not move, which is the honest state for a token that has
-not launched. The route button stays available, because the route is public.
+The feed runs in **Live** mode. With nothing connected it says *awaiting launch*,
+and every market readout shows **—** — market cap, price, altitude, buys/sells and
+holders. Nothing has been measured, so nothing is reported.
+
+That last part matters more than it sounds. The page used to show a compiled-in
+`$12,000` market cap and a `$0.000012` price for a token whose own feed said
+*awaiting launch*. The price was not even a stored value: it was
+`marketCap / CONFIG.token.supply`, computed from that placeholder and a
+hardcoded supply of one billion that nobody has checked against the real mint. A
+number carrying ten decimal places reads as measured, and that one was invented
+twice over. The mountain still puts the climber partway up — the scene needs a
+position — but the readouts no longer present that position as data.
+
+What stays visible is what is true without a feed: the **route** (the ladder and
+the next camp) and the **summit target** in the scene HUD, because those are
+properties of the climb rather than readings from a market. The route button
+stays available too, because the route is public.
 
 Open **`?demo=1`** to get the whole console back — Sim mode, the manual market
 cap slider, the feed endpoint, the speed and cycle controls, and the Hype

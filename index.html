@@ -880,9 +880,20 @@ const state = {
      the demo gate decides it rather than a constant deciding it. */
   copyMode: 'safe', feedMode: DEMO ? 'sim' : 'live',
   speed: 1, endpoint: '', pollMs: 1500,
-  skyT: 0.30, skyAuto: true, cycleSec: 120
+  skyT: 0.30, skyAuto: true, cycleSec: 120,
+  /* Whether a real frame has ever arrived.
+     `mc` above is the climb POSITION and is always defined, because the
+     mountain needs somewhere to put the climber. It is not a market
+     measurement until the feed supplies one, and the readouts must not treat
+     it as one. */
+  hasData: false
 };
 state.price = state.mc / CONFIG.token.supply;
+
+/* The top of the route, for the HUD's "summit" readout. Derived as the highest
+   milestone rather than read as `camps[camps.length - 1]`, so reordering the
+   route cannot silently point the summit readout at an intermediate camp. */
+const SUMMIT_MC = Math.max(...CONFIG.camps.map(c => c.mc));
 
 function seedReached(){
   state.reached.clear();
@@ -1907,6 +1918,8 @@ function startManual(){
   s.value = String(clamp(Math.round(state.mc), +s.min, +s.max));
   $('manual-val').textContent = fmtMoney(+s.value);
   setFeedState('off', 'manual control');
+  /* A manual value is asserted by an operator, so it is reportable. */
+  state.hasData = true;
   feedHandle = { stop(){} };
 }
 
@@ -1918,6 +1931,8 @@ function startLive(){
        that the production posture hides, and "awaiting launch" is also the
        truthful state for a token that has not launched yet. */
     setFeedState('off', DEMO ? 'no endpoint set' : 'awaiting launch');
+    /* Nothing has been measured, so nothing is reported. */
+    state.hasData = false;
     Tape.push('sell', DEMO
       ? 'Live feed needs an endpoint — open Feed setup'
       : 'The live feed starts when the token launches');
@@ -1958,7 +1973,10 @@ const fin = v => (typeof v === 'number' && Number.isFinite(v)) ? v : null;
 function apply(d){
   const prevMc = state.mc;
   const mcIn = fin(d.marketCapUsd) ?? fin(d.mc);
-  if (mcIn !== null) state.mc = Math.max(0, mcIn);
+  /* Only a frame carrying a market cap counts as data. A `{pending:true}`
+     heartbeat carries none, so it leaves the readouts dashed rather than
+     inventing a value for a token that has not launched. */
+  if (mcIn !== null){ state.mc = Math.max(0, mcIn); state.hasData = true; }
 
   const priceIn = fin(d.priceUsd);
   state.price = priceIn !== null ? Math.max(0, priceIn) : state.mc / CONFIG.token.supply;
@@ -2035,13 +2053,27 @@ function loop(t){
   /* readouts */
   const f = mcToF(state.mcShown);
   const alt = fToAlt(f);
-  $('s-mc').textContent = fmtMoney(state.mcShown);
-  $('s-price').textContent = fmtPrice(state.price);
-  $('s-alt').textContent = fmtAlt(alt);
-  $('s-bs').textContent = `${state.buys} / ${state.sells} · ${fmtSol(state.buySol)} / ${fmtSol(state.sellSol)}`;
-  $('s-holders').textContent = state.holders.toLocaleString('en-US');
-  $('h-summit').textContent = fmtMoney(state.mcShown);
-  $('h-alt').textContent = fmtAlt(alt);
+  /* Before a real frame has arrived there is no market to describe. The
+     compiled-in starting position still drives the mountain — the climber needs
+     somewhere to stand — but it must not be presented as a measurement. A
+     visitor was shown "Market cap $12,000" and "Price $0.000012" for a token
+     whose own feed said "awaiting launch", the price derived from that
+     placeholder and a compiled-in supply nobody has checked against the mint. */
+  const DASH = '—';
+  $('s-mc').textContent      = state.hasData ? fmtMoney(state.mcShown) : DASH;
+  $('s-price').textContent   = state.hasData ? fmtPrice(state.price)   : DASH;
+  $('s-alt').textContent     = state.hasData ? fmtAlt(alt)             : DASH;
+  $('s-bs').textContent      = state.hasData
+    ? `${state.buys} / ${state.sells} · ${fmtSol(state.buySol)} / ${fmtSol(state.sellSol)}`
+    : DASH;
+  $('s-holders').textContent = state.hasData ? state.holders.toLocaleString('en-US') : DASH;
+  /* The summit is the top of the ROUTE, so this is a target rather than a
+     reading and it shows whether or not anything is connected. It used to be
+     set to the current market cap, so the pill read "summit $12,000" beside a
+     ladder row reading "Summit ... $1M market cap" — wrong by 83x, and wrong
+     about which of the two numbers it was showing. */
+  $('h-summit').textContent  = '$' + fmtShort(SUMMIT_MC);
+  $('h-alt').textContent     = state.hasData ? fmtAlt(alt) : DASH;
 
   const hrs = state.skyT * 24;
   const hh = String(Math.floor(hrs)).padStart(2,'0');
