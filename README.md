@@ -27,12 +27,16 @@ light at noon, blue shadow at night.
 
 | Camp | Altitude | Market cap | Graphic position |
 |---|---|---|---|
-| Base Camp | 5,364 m / 17,598 ft | $15k | 0.16 |
-| Camp 1 | 6,065 m / 19,900 ft | $30k | 0.30 |
-| Camp 2 | 6,400 m / 21,000 ft | $100k | 0.44 |
-| Camp 3 | 7,200 m / 23,600 ft | $250k | 0.60 |
-| Camp 4 | 7,925 m / 26,000 ft | $500k | 0.79 |
-| Summit | 8,849 m / 29,032 ft | $1M | 1.00 |
+| Base Camp | 5,364 m / 17,598 ft | $2k | 0.16 |
+| Camp 1 | 6,065 m / 19,900 ft | $5k | 0.30 |
+| Camp 2 | 6,400 m / 21,000 ft | $10k | 0.44 |
+| Camp 3 | 7,200 m / 23,600 ft | $40k | 0.60 |
+| Camp 4 | 7,925 m / 26,000 ft | $80k | 0.79 |
+| Summit | 8,849 m / 29,032 ft | $150k | 1.00 |
+
+`CONFIG.camps[].mc` holds these, and everything else derives from them: the
+ladder, the summit readout in the scene HUD, and `state.mc`'s starting position,
+which must stay **below Base Camp** or the page loads with camps already reached.
 
 The trailhead (graphic position 0) is Lukla at 2,860 m — the real start of the
 trek, where the Everest flights land.

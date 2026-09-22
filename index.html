@@ -563,23 +563,27 @@ const CONFIG = {
   trailheadAlt: 2860,
   summitAlt: 8849,
 
-  /* Highest market cap the climb can reach. Set to your last camp. */
-  scaleMax: 1000000,
+  /* Highest market cap the climb can reach.
+     NOTHING READS THIS. The ladder and the summit readout both derive from the
+     last camp's `mc` below, which is why lowering the route to $150k needed no
+     change here to work. It is kept in step anyway so the two cannot disagree if
+     something starts reading it — but do not "set" it expecting an effect. */
+  scaleMax: 150000,
 
   /* The route. `f` is graphic position up the mountain (0 = trailhead, 1 = summit).
      Thresholds are market cap. Altitudes are the real ones. */
   camps: [
-    { id:'bc',  name:'Base Camp', alt:5364, mc:15000,   f:0.16, x:386,
+    { id:'bc',  name:'Base Camp', alt:5364, mc:2000,    f:0.16, x:386,
       unlock:'Community trail cleanup day — 30 places' },
-    { id:'c1',  name:'Camp 1',    alt:6065, mc:30000,   f:0.30, x:372,
+    { id:'c1',  name:'Camp 1',    alt:6065, mc:5000,    f:0.30, x:372,
       unlock:'Top of the Khumbu Icefall — DEX and liquidity costs funded from accrued fees' },
-    { id:'c2',  name:'Camp 2',    alt:6400, mc:100000,  f:0.44, x:362,
+    { id:'c2',  name:'Camp 2',    alt:6400, mc:10000,   f:0.44, x:362,
       unlock:'Western Cwm — verified summit mission, 20 places, allocation by draw' },
-    { id:'c3',  name:'Camp 3',    alt:7200, mc:250000,  f:0.60, x:370,
+    { id:'c3',  name:'Camp 3',    alt:7200, mc:40000,   f:0.60, x:370,
       unlock:'Lhotse Face — guide support and transport subsidies for the cohort' },
-    { id:'c4',  name:'Camp 4',    alt:7925, mc:500000,  f:0.79, x:386,
+    { id:'c4',  name:'Camp 4',    alt:7925, mc:80000,   f:0.79, x:386,
       unlock:'South Col — gear partners and a trail-restoration grant' },
-    { id:'sum', name:'Summit',    alt:8849, mc:1000000, f:1.00, x:400,
+    { id:'sum', name:'Summit',    alt:8849, mc:150000,  f:1.00, x:400,
       unlock:'8,849 m — flagship expedition plus scholarship places' }
   ],
 
@@ -866,7 +870,11 @@ const DEMO = new URLSearchParams(location.search).has('demo');
    State
    ===================================================================== */
 const state = {
-  mc: 12000, mcShown: 12000, price: 0,
+  /* The climber's starting position, just below Base Camp ($2,000) so nothing
+     has been reached yet. It used to be 12000, which was below the old $15,000
+     Base Camp — lowering the ladder without lowering this would have loaded the
+     page showing "3 / 6 camps". */
+  mc: 1600, mcShown: 1600, price: 0,
   buys: 0, sells: 0, holders: 0,
   buySol: 0, sellSol: 0,
   reached: new Set(),
@@ -2093,7 +2101,7 @@ $('sky-toggle').addEventListener('click', () => {
 
 $('btn-reset').addEventListener('click', () => {
   stopFeed();
-  state.mc = 12000; state.mcShown = 12000;
+  state.mc = 1600; state.mcShown = 1600;
   state.buys = 0; state.sells = 0; state.holders = 0;
   state.buySol = 0; state.sellSol = 0;
   lastBuys = 0; lastSells = 0; lastBuySol = 0; lastSellSol = 0;
