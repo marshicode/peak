@@ -43,6 +43,14 @@ create table if not exists public.peak_settings (
   -- The token's mint. NULL or empty means "not launched yet", which is the
   -- state the CA band has a branch for. Base58 only: a mint that is not base58
   -- becomes a dead pump.fun button, and it is pasted into a URL.
+  --
+  -- This is a CHARACTER-LEVEL backstop, not the real check. A Solana address is
+  -- exactly 32 BYTES and base58 is not one character per byte, so 32-44
+  -- characters does not imply 32 bytes: "1" x 43 + "2" is 44 valid base58
+  -- characters, decodes to 44 bytes, and the node rejects it as WrongSize.
+  -- PostgreSQL has no base58 decode, so the byte-length check lives in
+  -- lib/base58.js and runs in /api/settings and /api/verify-ca. This constraint
+  -- is what makes the column safe if the API is ever bypassed.
   ca             text check (ca is null or ca ~ '^[1-9A-HJ-NP-Za-km-z]{32,44}$'),
 
   -- Branding. The symbol is stored bare ("PEAK"); the page renders it as

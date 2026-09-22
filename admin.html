@@ -84,6 +84,24 @@
   .hint{font-size:11.5px;color:var(--ink-3);margin-top:5px;}
   .hint code{font-family:var(--mono);background:var(--panel-2);padding:1px 5px;
              border-radius:4px;font-size:11px;}
+
+  /* The CA field's own row: a button and, next to it, the result of the chain
+     check. Kept inline with the input rather than in a separate panel so the
+     verdict cannot be read as being about some other field. */
+  .cafoot{display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap;}
+  .cafoot .btn{margin-top:0;}
+  .cafoot-note{font-size:11.5px;color:var(--ink-3);min-width:0;flex:1 1 200px;}
+  /* The verdict is a .msg, so it inherits the ok/err/warn palette. Its detail
+     lines are a definition list rather than prose: the operator is comparing
+     four numbers, and a sentence makes that harder. */
+  #ca-verdict dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;
+                 margin:7px 0 0;font-size:11.5px;}
+  #ca-verdict dt{color:inherit;opacity:.75;}
+  #ca-verdict dd{margin:0;font-family:var(--mono);word-break:break-all;}
+  #ca-verdict ul{margin:7px 0 0;padding-left:16px;font-size:11.5px;}
+  #ca-verdict li{margin-top:3px;}
+  #ca-verdict a{color:inherit;}
+  .cafoot .btn.busy{opacity:.6;cursor:progress;}
   .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
   @media (max-width:640px){.grid2{grid-template-columns:minmax(0,1fr);}}
 
@@ -203,9 +221,14 @@
       <div class="row">
         <label for="f-ca">Contract address<span class="tag def" id="t-ca">default</span></label>
         <input type="text" id="f-ca" spellcheck="false" placeholder="Paste the Solana mint address">
+        <div class="cafoot">
+          <button type="button" class="btn" id="ca-check">Check on chain</button>
+          <span class="cafoot-note" id="ca-check-note">Confirms the mint exists and whether it can still be minted or frozen.</span>
+        </div>
+        <div class="msg" id="ca-verdict" role="status" aria-live="polite"></div>
         <div class="hint">
-          Base58, 32–44 characters. The page checks this and refuses anything else.
-          Leave it empty to show <code>CA: TO BE LAUNCHED</code>.
+          Base58, decoding to exactly 32 bytes — a 44-character string that decodes to 44 bytes
+          is refused. Leave it empty to show <code>CA: TO BE LAUNCHED</code>.
         </div>
       </div>
       <div class="grid2">
@@ -478,7 +501,15 @@ function load(){
     $('meta').textContent = 'local mode — nothing is published to the server';
     return;
   }
-  fetch('/api/settings', { cache: 'no-store' })
+  /* The secret is sent here too. The public read returns only the columns a
+     visitor needs, and `rpc_url` is deliberately not one of them (it carries a
+     paid API key). The operator's own read returns the whole row, so the panel
+     can show what is actually published. A stale secret degrades to the public
+     row rather than failing — the panel just will not see rpc_url. */
+  fetch('/api/settings', {
+    cache: 'no-store',
+    headers: { 'x-admin-secret': sessionStorage.getItem(SECRET_KEY) || '' },
+  })
     .then(r => r.json())
     .then(data => {
       CURRENT = data?.settings || {};
@@ -501,6 +532,7 @@ function fill(){
   }
   updateTags();
   updatePreview();
+  clearVerdict();
   setState('');
 }
 
@@ -533,7 +565,14 @@ for (const [key] of FIELDS){
   if (!el) continue;
   el.addEventListener('input', () => {
     DRAFT[key] = el.value;
-    if (key === 'ca') updatePreview();
+    if (key === 'ca'){
+      updatePreview();
+      /* A verdict describes ONE address. The moment the field no longer holds
+         that address the verdict is stale, and a green "this mint is real"
+         beside a different CA is worse than no verdict — it is precisely the
+         reassurance someone would act on. */
+      if (verifiedFor !== null && el.value.trim().replace(/^\$/, '') !== verifiedFor) clearVerdict();
+    }
     dirty = true;
     setState('unsaved changes');
   });
@@ -546,6 +585,151 @@ $('revert').addEventListener('click', () => {
   dirty = false;
   fill();
 });
+
+/* ---------------------------------------------------------------------
+   Chain check
+   ---------------------------------------------------------------------
+   The CA is the one field where being wrong costs someone money: it is what
+   people copy before they trade. The CHECK constraint catches an address that
+   is not base58, and the endpoint catches one that does not decode to 32 bytes,
+   but neither can catch an address that is well-formed and belongs to a
+   different token — or one whose deployer can still mint or freeze.
+
+   So the panel asks the chain, and the answer is advisory: the check is a
+   button, not a gate. An RPC outage must not be able to stop the operator
+   publishing. */
+
+/* The address the visible verdict is about. Null means there is no verdict. */
+let verifiedFor = null;
+
+function clearVerdict(){
+  const box = $('ca-verdict');
+  box.className = 'msg';
+  box.textContent = '';
+  verifiedFor = null;
+}
+
+function showVerdict(kind, title, detail){
+  const box = $('ca-verdict');
+  box.className = 'msg show ' + kind;
+  box.textContent = '';
+  const head = document.createElement('div');
+  head.textContent = title;
+  box.append(head);
+  if (detail) box.append(detail);
+}
+
+/* Everything below builds DOM rather than markup. The supply, the authority
+   addresses and the warning text all come from an RPC response, and none of it
+   should be able to become markup on the way to the screen. */
+function detailList(rows){
+  const dl = document.createElement('dl');
+  for (const [k, v] of rows){
+    const dt = document.createElement('dt'); dt.textContent = k;
+    const dd = document.createElement('dd'); dd.textContent = v;
+    dl.append(dt, dd);
+  }
+  return dl;
+}
+
+function warningList(items){
+  const ul = document.createElement('ul');
+  for (const w of items){
+    const li = document.createElement('li');
+    li.textContent = w;
+    ul.append(li);
+  }
+  return ul;
+}
+
+/* An address in full is 44 characters of noise in a status line. The first and
+   last four are enough to confirm it is the one you pasted. */
+const truncate = (addr) => (addr ? addr.slice(0, 4) + '…' + addr.slice(-4) : '—');
+
+async function checkCa(){
+  const btn = $('ca-check');
+  const ca = ($('f-ca').value || '').trim().replace(/^\$/, '');
+
+  if (!ca){
+    showVerdict('warn', 'The field is empty, so the site will show CA: TO BE LAUNCHED. Nothing to check.');
+    return;
+  }
+  if (MODE === 'local'){
+    showVerdict('warn', 'Local mode has no server, so the chain check is unavailable. The address is still saved to this browser.');
+    return;
+  }
+
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.classList.add('busy');
+  btn.textContent = 'Checking…';
+
+  try {
+    const res = await fetch('/api/verify-ca', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-secret': sessionStorage.getItem(SECRET_KEY) || '',
+      },
+      body: JSON.stringify({ ca }),
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.status === 401){
+      showVerdict('err', 'The saved password is no longer accepted. Unlock again, then retry.');
+      return;
+    }
+    if (!res.ok){
+      showVerdict('err', data?.error || `The check failed (HTTP ${res.status}).`);
+      return;
+    }
+
+    if (!data.ok){
+      if (data.reason === 'not_found'){
+        showVerdict('err',
+          'No account exists at this address. The mint is not deployed — look for a typo or a truncated paste.');
+      } else {
+        showVerdict('err',
+          `This address is ${data.looksLike || 'not a token mint'}. A token ACCOUNT is the usual mistake: it is the address a wallet shows you, and it is not the mint.`);
+      }
+      return;
+    }
+
+    const m = data.mint;
+    const detail = document.createElement('div');
+    detail.append(detailList([
+      ['decimals', String(m.decimals)],
+      ['total supply', m.uiSupply],
+      ['program', m.program],
+      ['mint authority', m.mintAuthority ? truncate(m.mintAuthority) : 'revoked'],
+      ['freeze authority', m.freezeAuthority ? truncate(m.freezeAuthority) : 'revoked'],
+    ]));
+    if (data.holders){
+      detail.append(detailList([['top 10 hold', (data.holders.topShare * 100).toFixed(1) + '%']]));
+    }
+    if (data.warnings?.length) detail.append(warningList(data.warnings));
+
+    /* The head line says what to DO, not just what was found. "Active mint
+       authority" is a fact; "the deployer can print more" is the consequence
+       that decides whether to publish. */
+    showVerdict(
+      data.warnings?.length ? 'warn' : 'ok',
+      data.warnings?.length
+        ? 'A real mint — but read this before you publish.'
+        : 'A real SPL mint, and both authorities are revoked.',
+      detail
+    );
+    verifiedFor = ca;
+  } catch {
+    showVerdict('err', 'Could not reach the server to run the check.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('busy');
+    btn.textContent = label;
+  }
+}
+
+$('ca-check').addEventListener('click', checkCa);
 
 /* ---------------------------------------------------------------------
    Publish

@@ -1,3 +1,5 @@
+import { addressProblem } from "../lib/base58.js";
+
 /**
  * /api/settings — the settings that change what a VISITOR sees.
  *
@@ -20,6 +22,9 @@
  * the last thing that should be reachable from a public bundle.
  *
  *   GET   /api/settings          public. Returns the row, or null.
+ *                                Only PUBLIC_COLUMNS — see the note there on
+ *                                why `rpc_url` is not among them. A GET that
+ *                                carries x-admin-secret returns the full row.
  *   POST  /api/settings          x-admin-secret required.
  *         { "settings": { ca?, tokenSymbol?, ... } }
  *
@@ -38,10 +43,12 @@
  */
 
 /**
- * Base58, the Solana address alphabet. `0`, `O`, `I` and `l` are excluded
- * precisely because they are the characters people misread.
+ * The CA is the one field where "roughly right" is not good enough — see
+ * lib/base58.js for why a length regex accepts addresses that do not exist.
  */
-const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+function isMint(v) {
+  return addressProblem(v) === null;
+}
 
 /**
  * `res.status(400).json(...)` is a Vercel convenience and NOT part of Node's API.
@@ -87,6 +94,32 @@ const FIELDS = {
 };
 
 /**
+ * The columns a VISITOR may see.
+ *
+ * This is an allow-list, not a deny-list, and that direction is deliberate: a
+ * new column added to the table is private until somebody writes it down here.
+ * The other way round, a new column is public the moment it is created — which
+ * is how a secret ends up on a public endpoint.
+ *
+ * `rpc_url` is excluded because the shared endpoint is Helius and the URL
+ * carries the paid API key in its query string. The page never reads this
+ * column, so serving it would only ever leak it. The operator still sees it:
+ * a GET carrying the admin secret returns the full row.
+ *
+ * `updated_by` is excluded because it is an internal note ("who published
+ * this"), not something a visitor has any use for.
+ */
+const PUBLIC_COLUMNS = [
+  "id",
+  "ca", "token_symbol", "token_name",
+  "pump_url", "x_url", "feed_url",
+  "copy_safe_head", "copy_safe_body", "copy_safe_sub",
+  "copy_hype_head", "copy_hype_body", "copy_hype_sub",
+  "ladder_note",
+  "updated_at",
+];
+
+/**
  * Validate one field and return the column value (or null to clear).
  *
  * Hard validation because these values are rendered to the public and the CA is
@@ -106,7 +139,8 @@ function coerce(key, spec, raw) {
   switch (spec.kind) {
     case "mint": {
       const v = s.replace(/^\$/, "");
-      if (!MINT_RE.test(v)) throw new Error(`${label} is not a valid Solana mint address`);
+      const problem = addressProblem(v);
+      if (problem) throw new Error(`${label} is not a valid Solana mint address — ${problem}`);
       return { col: spec.col, value: v };
     }
     case "symbol": {
@@ -213,11 +247,14 @@ export default async function handler(req, res) {
   const auth = { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" };
   const table = `${url}/rest/v1/peak_settings`;
 
-  /* ---- read: public, no secret. The page reads this directly, but it is also
-     here so the endpoint can be exercised on its own. ---- */
+  /* ---- read. Public by default, but the COLUMNS depend on who is asking:
+     without the secret, only the columns the page renders; with it, the whole
+     row so the panel can show what is currently published. ---- */
   if (req.method === "GET") {
+    const isOperator = req.headers["x-admin-secret"] === secret;
+    const select = isOperator ? "*" : PUBLIC_COLUMNS.join(",");
     try {
-      const upstream = await fetch(`${table}?id=eq.true&limit=1`, { headers: auth });
+      const upstream = await fetch(`${table}?id=eq.true&limit=1&select=${select}`, { headers: auth });
       if (!upstream.ok) {
         sendJson(res, 502, { error: `supabase responded ${upstream.status}` });
         return;

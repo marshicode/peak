@@ -109,6 +109,13 @@ renders.
 
 ### Deploying it
 
+PEAK shares a Supabase project with FundMeme and LOTTO — the same credentials,
+the same database, a different table. `peak_settings` is namespaced so nothing
+here can collide with theirs, and the migration is idempotent
+(`create table if not exists`, `drop policy if exists`, `on conflict do nothing`)
+so re-applying it after a deploy is safe. `ADMIN_SECRET` is deliberately *not*
+shared: one leak would otherwise be two.
+
 1. **Create the table.** Run `schema/001_settings.sql` against your Supabase
    project — the SQL editor is fine. It creates `peak_settings`, turns on RLS,
    and seeds the single empty row.
@@ -120,6 +127,7 @@ renders.
    | `ADMIN_SECRET` | The operator's passphrase. Also what you type into `/admin`. |
    | `SUPABASE_URL` | `https://<ref>.supabase.co` (or `VITE_SUPABASE_URL`). |
    | `SUPABASE_SERVICE_ROLE_KEY` | Bypasses RLS so the API can write. **Server-side only.** |
+   | `RPC_URL` | Solana RPC for the chain check. Carries an API key — **never published**. |
    | `PEAK_API_KEY` | Optional. Your market-data provider's key, used by `/api/feed`. |
    | `PEAK_MINT`, `PEAK_UPSTREAM` | Optional. Fallbacks used only until a CA is published. |
 
@@ -128,6 +136,44 @@ renders.
 
 3. **Deploy.** Vercel picks up `api/` automatically. `vercel.json` turns on clean
    URLs so `/admin` resolves, and marks it `noindex`.
+
+### The chain check
+
+Pasting a contract address is the one action here that can cost someone money —
+the CA is what people copy before they trade. The panel has a **Check on chain**
+button that asks the RPC what the address actually is, and answers with more than
+"valid":
+
+- whether an account exists there at all
+- whether it is an SPL mint, or a token **account** (the mistake people actually
+  make, because it is the address a wallet shows you)
+- decimals and exact supply
+- **whether mint and freeze authority are still active** — an active mint
+  authority can inflate the supply after launch, and an active freeze authority
+  can freeze a holder's tokens. Both are ordinary rug mechanics and neither is
+  visible from the address alone.
+
+The verdict is advisory, not a gate: an RPC outage must not be able to stop you
+publishing. It clears itself the moment the field no longer holds the address it
+describes, because a green tick beside a different CA is worse than no tick.
+
+Two things the check will not do. It does not prove the token is *safe* — it
+reports what the chain says, and a revoked mint authority is not an endorsement.
+And it cannot enumerate holders: the shared Helius key refuses
+`getTokenLargestAccounts`, so concentration is reported as *unavailable* rather
+than as zero. `holdersUnavailable` in the response is that distinction.
+
+### What a public read does not return
+
+`GET /api/settings` serves an allow-list of columns, not the whole row. `rpc_url`
+is excluded because a Helius URL carries the paid API key in its query string,
+and `index.html` never reads the column, so serving it would only ever leak it.
+A read carrying `x-admin-secret` returns the full row so the panel can show what
+is published.
+
+The list is an allow-list on purpose: a column added later is private until
+somebody writes it down as public. The other way round, every new column is
+public the moment it is created.
 
 ### How the page stays current
 
@@ -190,8 +236,10 @@ problem.
 | **`index.html`** | The app. Single file, zero dependencies. |
 | **`admin.html`** | The operator panel at `/admin`. Password-gated, publishes to the database. |
 | **`api/settings.js`** | Public read, admin write. The only place the CA can be changed. |
+| **`api/verify-ca.js`** | Admin-only. Asks the RPC what a contract address actually is before you publish it. |
 | **`api/admin-auth.js`** | Checks the panel password, server-side and timing-safe. |
 | **`api/feed.js`** | Serves the live market frame, driven by the published CA rather than an env var. |
+| **`lib/base58.js`** | Decodes base58 to bytes. A length regex accepts addresses that are 32–44 characters and not 32 bytes. |
 | **`schema/001_settings.sql`** | The `peak_settings` table, its constraints, and its RLS posture. |
 | **`feed-proxy.mjs`** | Node proxy that normalises a pump.fun feed for the browser. Mock mode needs no API key. |
 | **`logo/`** | Logo pack — 6 SVG masters (mark, lockup, app icon; light and dark) plus PNG builds. |
